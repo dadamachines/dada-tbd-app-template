@@ -24,6 +24,8 @@ respective component folders / files if different from this license.
 
 #include <cstdint>
 
+#define N_CVS 90
+#define N_TRIGS 40
 
 // --- Define-contants for MIDI-mapping-related stuff --- 
 #define MIDI_NOTE_0V                48  // is C3

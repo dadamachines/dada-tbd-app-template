@@ -4,6 +4,8 @@
 #warning "All Serial1 Monitor Output is on Serial1"
 #endif
 
+#include "Midi.h"
+
 #include <Wire.h>
 #define I2C_SLAVE_ADDR 0x42
 #define I2C_SDA 38
@@ -56,7 +58,7 @@ unsigned long previousMillis = 0;
 #include <SPI.h>
 #include <SoftwareSPI.h>
 SoftwareSPI *softSPI;
-#define SPI_SPEED 8000000
+#define SPI_SPEED 62500000 // 62.5 MHz
 #define SPI_SCLK 34
 #define SPI_MOSI 35
 #define SPI_MISO 32
@@ -65,8 +67,9 @@ SoftwareSPI *softSPI;
 #define SPI1_MOSI 31
 #define SPI1_MISO 28
 #define SPI1_CS 29
-#define SPI_BUFFER_LEN 64
-SPISettings spiSettings(SPI_SPEED, MSBFIRST, SPI_MODE3); 
+//#define SPI_BUFFER_LEN 64
+#define SPI_BUFFER_LEN 2048
+SPISettings spiSettings(SPI_SPEED, MSBFIRST, SPI_MODE3);
 
 // transfer structure is
 // byte 0, 1 -> 0xCA 0xFE (fingerprint)
@@ -92,6 +95,7 @@ const uint8_t rgb_led_rp2350 = 0;
 const uint8_t rgb_led_btn_map[] = {8, 7, 6, 5, 4, 3, 2, 1, 9, 10, 11, 12, 13, 14, 15, 16};
 const uint8_t rgb_led_fbtn_map[] = {19, 17, 18};
 const uint8_t rgb_led_mcl = 20;
+
 
 // the setup function runs once when you press reset or power the board
 void setup()
@@ -119,7 +123,8 @@ void setup()
   SPI1.setCS(SPI1_CS);
   SPI1.setSCK(SPI1_SCLK);
   SPI1.begin(true); // hw CS assertion
-  
+
+	Midi::Init(); // Initialize MIDI handling
 
   // WS sync to codec
   pinMode(WS_PIN, INPUT); // Configure button pin with pull-up resistor
@@ -137,6 +142,8 @@ void setup()
   // Optionally, configure the buffer sizes here
   // The commented out code shows the default values
   // tuh_midih_define_limits(64, 64, 16);
+
+
 
   USBHost.begin(0); // 0 means use native RP2040 host
 

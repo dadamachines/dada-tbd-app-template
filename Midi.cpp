@@ -24,9 +24,6 @@ respective component folders / files if different from this license.
 #include <cstring>
 #include <algorithm>
 
-#define N_CVS 90
-#define N_TRIGS 40
-
 
 // === Private Helper-Funtions ===
 // --- Map incoming CCs for Voices A-D to CVs according their representation as used with the TBD BBA, to be distributed according to names mapped via the UI ---
@@ -806,13 +803,11 @@ static uint8_t loc_msg[8];            // Local message to be constructed in a ru
 
 // --- General BBA Initialisation Method ---
 void Midi::Init() {
-/*
     memset(buf0, 0, DATA_SZ);                       // Reset "virtual CV"-data at startup
     memset(midi_note_trig, 1,
            N_TRIGS);             // Reset "virtual Gate/Trigger"-data at startup (1==off aka TRIG_OFF)
     distribute.setCVandTriggerPointers(midi_data, midi_note_trig);    // Pass on pointer to CV and Trigger shared data
-    DRIVERS::rp2040_spi_stream::Init();
-*/
+    //DRIVERS::rp2040_spi_stream::Init();
 }
 
 // ===  MIDI-parsing method (Please note: Running status is not processed correctly with this implementation!) ===
