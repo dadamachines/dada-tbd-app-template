@@ -65,7 +65,7 @@ respective component folders / files if different from this license.
 // On the GUI this is represented in the dropdown-list of mappable MIDI-events as "global voices": 'G' or "individual voices": 'A','B','C','D'
 // MIDI-notes on the global channels 1, 15 and 16 will be converted to be mappable as Voices A, B+C or B-D, depending on the 3 voicemodes
 
-class Midi final
+class MidiParser final
     {
     public:
 
@@ -103,7 +103,7 @@ class Midi final
         void noteOff(uint8_t* msg);             // For MIDI-events that are assignable via GUI process Note messages (CV and/or Trigger off) and write to transfer-queue
 
     private:
-        // === I/O data to be exchanged with audio-thread, pointers will be linked initially by bba_init() in Control.cpp Midi::viasetCVandTriggerPointers() ===
+        // === I/O data to be exchanged with audio-thread, pointers will be linked initially by bba_init() in Control.cpp MidiParser::viasetCVandTriggerPointers() ===
         float* midi_cvs;              // Normally only to be set once
         uint8_t* midi_triggers;       // Normally only to be set once
 

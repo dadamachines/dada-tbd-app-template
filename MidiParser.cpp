@@ -20,14 +20,14 @@ License and copyright details for specific submodules are included in their
 respective component folders / files if different from this license.
 ***************/
 
-#include "Midi.h"
+#include "MidiParser.h"
 #include <cstring>
 #include <algorithm>
 
 
 // === Private Helper-Funtions ===
 // --- Map incoming CCs for Voices A-D to CVs according their representation as used with the TBD BBA, to be distributed according to names mapped via the UI ---
-Midi::CV_id_abcd Midi::ccToCVid_abcd(uint8_t cc)
+MidiParser::CV_id_abcd MidiParser::ccToCVid_abcd(uint8_t cc)
 {
     switch (cc)     // Voices A-D: Convert incoming CC-numbers to valid enum of processed CCs or 'none' which effectively is 0 and unused!
     {
@@ -65,7 +65,7 @@ Midi::CV_id_abcd Midi::ccToCVid_abcd(uint8_t cc)
 }
 
 // --- Map incoming CCs for "global channel" to CVs according their representation as used with the TBD BBA, to be distributed according to names mapped via the UI ---
-Midi::CV_id_glob Midi::ccToCVid_glob(uint8_t* msg)
+MidiParser::CV_id_glob MidiParser::ccToCVid_glob(uint8_t* msg)
 {
     switch(*(msg+1))     // Voices A-D: Convert incoming CC-numbers to valid enum of processed CCs or 'none' which effectively is 0 and unused!
     {
@@ -121,7 +121,7 @@ Midi::CV_id_glob Midi::ccToCVid_glob(uint8_t* msg)
 }
 
 // --- Map incoming CCs for Voices A-D to Triggers according their representation as used with the TBD BBA, to be distributed according to names mapped via the UI ---
-Midi::TRIG_id_abcd Midi::ccToTrigId_abcd(uint8_t cc)
+MidiParser::TRIG_id_abcd MidiParser::ccToTrigId_abcd(uint8_t cc)
 {
     switch (cc)     // Convert incoming CC-numbers to valid enum of processed CCs or 'none' which effectively is 0 and unused!
     {
@@ -139,7 +139,7 @@ Midi::TRIG_id_abcd Midi::ccToTrigId_abcd(uint8_t cc)
 }
 
 // --- Map incoming CCs from global channel to Triggers according their representation as used with the TBD BBA, to be distributed according to names mapped via the UI ---
-Midi::TRIG_id_glob Midi::ccToTrigId_glob(uint8_t cc)
+MidiParser::TRIG_id_glob MidiParser::ccToTrigId_glob(uint8_t cc)
 {
     switch (cc)     // Convert incoming CC-numbers to valid enum of processed CCs or 'none' which effectively is 0 and unused!
     {
@@ -163,7 +163,7 @@ Midi::TRIG_id_glob Midi::ccToTrigId_glob(uint8_t cc)
 }
 
 // --- Map incoming notes from percussion channel to indexes for CVs representing their velocity equicalent ---
-Midi::Control_element_cv_id Midi::noteToCVid_perc(uint8_t drum_note)
+MidiParser::Control_element_cv_id MidiParser::noteToCVid_perc(uint8_t drum_note)
 {
     switch(drum_note)     // Valid percussion notes range from 36 to 51 (C1 do D#2)
     {
@@ -205,7 +205,7 @@ Midi::Control_element_cv_id Midi::noteToCVid_perc(uint8_t drum_note)
 }
 
 // --- "Panic-function": avoid hanging notes, especially after voidemode-Change ---
-void Midi::allNotesOff()                // Typically to be triggered by all notes off message (Continouus Controller)
+void MidiParser::allNotesOff()                // Typically to be triggered by all notes off message (Continouus Controller)
 {
     monophonic_keys_down = 0;           // No more active keys for monophonic mode...
     memset( midi_note_pressed, 0, sizeof(midi_note_pressed) );  // No monophonic keys pressed anymore (please note: this is a two dimensional aray, but we disable settings for all channels!)
@@ -219,7 +219,7 @@ void Midi::allNotesOff()                // Typically to be triggered by all note
 }
 
 // --- Handle Noteoffs via MIDI (Either by noteoff-event or noteon-event with velocity 0), set Triggers accordinly and reset playing note ---
-void Midi::handleNoteOff(uint8_t*  msg)
+void MidiParser::handleNoteOff(uint8_t*  msg)
 {
     // === Retrieve MIDI-channel (internally 0-15) by masking the MIDI status-byte, We cast the enum retrieved in order to use it as a regular array-index ===
     channel = msg[0]&0x0F;   // Please note: channel 0 is global, 2-5 are voices, 6-16 are mapped to 2-5, (16 may be global for MPE or unused, so that we don't get any data here anyhow)
@@ -361,7 +361,7 @@ void Midi::handleNoteOff(uint8_t*  msg)
 
 // === Public main Funtions ===
 // --- Process incoming Control-Change events, decide if could be mapped to a GUI element and pass on resulting CV-Data to audio-thread accordingly ---
-void Midi::controlChange(uint8_t* msg)
+void MidiParser::controlChange(uint8_t* msg)
 {
     // === Retrieve CC-number and MIDI-channel (internally 0-15) by masking the MIDI status-byte, We cast the enum retrieved in order to use it as a regular array-index ===
     channel = msg[0]&0x0F;   // Please note: channel 0 is global, 2-5 are voices, 6-16 are mapped to 2-5, (16 may be global for MPE or unused, so that we don't get any data here anyhow)
@@ -421,7 +421,7 @@ void Midi::controlChange(uint8_t* msg)
 }
 
 // --- Process incoming Pressure events, decide if it could be mapped to a GUI element and pass on resulting CV-Data to audio-thread accordingly ---
-void Midi::channelPressure(uint8_t* msg)
+void MidiParser::channelPressure(uint8_t* msg)
 {
     // === Retrieve MIDI-channel (internally 0-15) by masking the MIDI status-byte, We cast the enum retrieved in order to use it as a regular array-index ===
     channel = msg[0]&0x0F;   // Please note: channel 0 is global, 2-5 are voices, 6-16 are mapped to 2-5, (16 may be global for MPE or unused, so that we don't get any data here anyhow)
@@ -450,7 +450,7 @@ void Midi::channelPressure(uint8_t* msg)
 }
 
 // --- Process incoming ProgramChange events, decide if it could be mapped to a GUI element and pass on resulting CV-Data to audio-thread accordingly ---
-void Midi::programChange(uint8_t* msg)
+void MidiParser::programChange(uint8_t* msg)
 {
     // === Retrieve MIDI-channel (internally 0-15) by masking the MIDI status-byte, We cast the enum retrieved in order to use it as a regular array-index ===
     channel = msg[0]&0x0F;   // Please note: channel 0 is global, 2-5 are voices, 6-16 are mapped to 2-5, (16 may be global for MPE or unused, so that we don't get any data here anyhow)
@@ -476,7 +476,7 @@ void Midi::programChange(uint8_t* msg)
 }
 
 // --- Process incoming PitchBend events, decide if it could be mapped to a GUI element and pass on resulting CV-Data to audio-thread accordingly ---
-void Midi::pitchBend(uint8_t* msg)
+void MidiParser::pitchBend(uint8_t* msg)
 {
     int16_t pitchBend_val = 0;
     int16_t pitchBend_val_raw = 0;
@@ -514,7 +514,7 @@ void Midi::pitchBend(uint8_t* msg)
 }
 
 // --- Process incoming NoteOn (including Velocity) events, decide if it could be mapped to a GUI element and pass on resulting CV-Data to audio-thread accordingly ---
-void Midi::noteOn(uint8_t* msg)
+void MidiParser::noteOn(uint8_t* msg)
 {
     // --- NoteOff via Velocity 0 for NoteOn? => Check if we have to silence the currently playing note ---
     if( msg[2]==0 )
@@ -733,7 +733,7 @@ void Midi::noteOn(uint8_t* msg)
 }
 
 // --- Process incoming NoteOff (including Velocity) events, decide if it could be mapped to a GUI element and pass on resulting CV-Data to audio-thread accordingly ---
-void Midi::noteOff(uint8_t* msg)
+void MidiParser::noteOff(uint8_t* msg)
 {
     // --- Check if we found a noteOff of the currently playing note? (We use a common sub-function, because noteoffs also can happen via noteoffs with velocity 9!) ---
     handleNoteOff(msg); // Processing is dependant on channel, because we have different voicemodes for channels, 1, 15 and 16
@@ -750,7 +750,7 @@ void Midi::noteOff(uint8_t* msg)
 #define DATA_SZ  (N_CVS * 4 + N_TRIGS + 2) // why +2, no idea!
 
 // --- Instanciate objects for lowlevel and highlevel MIDI processing ---// UART reader (and writer) for MIDI-messages
-static Midi distribute;     // Instanciate Midi-Class as object for MIDI-message distribution, according to events mapped via WebUI
+static MidiParser distribute;     // Instanciate Midi-Class as object for MIDI-message distribution, according to events mapped via WebUI
 
 // === Buffer to pass on MIDI-Event as virtual CV and Gate 'voltages', normalized to -1.f...+1.f (CV) and 0 or 1 integers (Triggers/Gates) ===
 static uint8_t buf0[DATA_SZ];     // Common Array of Data for CVs and Triggers, will be passed on at audio-rate, so that Plugins can process this data
@@ -785,7 +785,7 @@ static uint8_t loc_msg[8];            // Local message to be constructed in a ru
                 { len--;  ptr++; break; }
 
 // --- General BBA Initialisation Method ---
-void Midi::Init() {
+void MidiParser::Init() {
     memset(buf0, 0, DATA_SZ);                       // Reset "virtual CV"-data at startup
     memset(midi_note_trig, 1,
            N_TRIGS);             // Reset "virtual Gate/Trigger"-data at startup (1==off aka TRIG_OFF)
@@ -793,7 +793,7 @@ void Midi::Init() {
 }
 
 // queue data for MIDI messages to be processed, returns the length of the queued data to identify if everything was queued
-uint32_t Midi::QueueData(uint8_t *data, uint32_t size) {
+uint32_t MidiParser::QueueData(uint8_t *data, uint32_t size) {
     if(missing_bytes_offset + size > (MIDI_BUF_SZ - 32)){
         return 0; // Not enough space in buffer, so we don't queue anything
     }
@@ -803,7 +803,7 @@ uint32_t Midi::QueueData(uint8_t *data, uint32_t size) {
 }
 
 // ===  MIDI-parsing method (Please note: Running status is not processed correctly with this implementation!) ===
-void Midi::Update(uint8_t *spi_data) {
+void MidiParser::Update(uint8_t *spi_data) {
     if (len == 0){
         // copy old data to spi_data if no new data is available
         memcpy(spi_data, buf0, DATA_SZ);
@@ -826,7 +826,7 @@ void Midi::Update(uint8_t *spi_data) {
             // --- Check rest of message to reconstruct a complete message together with regenerated (running) status byte to be passed on ---
             switch(current_status & 0xF0)           // Check it for usage
             {
-                case Midi::noteOnStatus:            // May also contain noteOff events that are send as noteOns with Velocity 0
+                case MidiParser::noteOnStatus:            // May also contain noteOff events that are send as noteOns with Velocity 0
                     if (len >= 2)                   // Message-Lenght as expected
                     {
                         loc_msg[1] = *ptr;
@@ -846,7 +846,7 @@ void Midi::Update(uint8_t *spi_data) {
                     }
                     break;
 
-                case Midi::noteOffStatus:            // Switchs of Triggers of notes if noteOff for same Pitch as the active note is detected
+                case MidiParser::noteOffStatus:            // Switchs of Triggers of notes if noteOff for same Pitch as the active note is detected
                     if (len >= 2)
                     {
                         loc_msg[1] = *ptr;
@@ -866,7 +866,7 @@ void Midi::Update(uint8_t *spi_data) {
                     }
                     break;
 
-                case Midi::channelPressureStatus:    // aka AfterTouch
+                case MidiParser::channelPressureStatus:    // aka AfterTouch
                     if (len >= 1)
                     {
                         loc_msg[1] = *ptr;
@@ -883,7 +883,7 @@ void Midi::Update(uint8_t *spi_data) {
                     }
                     break;
 
-                case Midi::pitchBendStatus:        // 14bit Pitchbend (will be handled bipolarily)
+                case MidiParser::pitchBendStatus:        // 14bit Pitchbend (will be handled bipolarily)
                     if (len >= 2)                   // Message has suitable length
                     {
                         loc_msg[1] = *ptr;
@@ -903,7 +903,7 @@ void Midi::Update(uint8_t *spi_data) {
                     }
                     break;
 
-                case Midi::controlChangeStatus:     // Including Bank and Subbank information
+                case MidiParser::controlChangeStatus:     // Including Bank and Subbank information
                     if (len >= 2)                    // Message has correct lenght
                     {
                         loc_msg[1] = *ptr;
@@ -923,7 +923,7 @@ void Midi::Update(uint8_t *spi_data) {
                     }
                     break;
 
-                case Midi::programChangeStatus:     // We accept ProgramChange events as a kind of continuous controls, too
+                case MidiParser::programChangeStatus:     // We accept ProgramChange events as a kind of continuous controls, too
                     if (len >= 1)
                     {
                         loc_msg[1] = *ptr;
@@ -945,7 +945,7 @@ void Midi::Update(uint8_t *spi_data) {
         // --- Regular status processing (If we reach here, there has no running-status been processed before!) ---
         switch ((*ptr) & 0xF0)                  // Mask out (possible) status-byte and check it for usage
         {
-            case Midi::noteOnStatus:            // May also contain noteOff events that are send as noteOns with Velocity 0
+            case MidiParser::noteOnStatus:            // May also contain noteOff events that are send as noteOns with Velocity 0
                 current_status = *ptr;          // Remember valid status, in case we encounter a running status byte next time!
                 if (len >= 3)                   // Message-Lenght as expected
                 {
@@ -964,7 +964,7 @@ void Midi::Update(uint8_t *spi_data) {
                 }
                 break;
 
-            case Midi::noteOffStatus:            // Switchs of Triggers of notes if noteOff for same Pitch as the active note is detected
+            case MidiParser::noteOffStatus:            // Switchs of Triggers of notes if noteOff for same Pitch as the active note is detected
                 current_status = *ptr;          // Remember valid status, in case we encounter a running status byte next time!
                 if (len >= 3)
                 {
@@ -983,7 +983,7 @@ void Midi::Update(uint8_t *spi_data) {
                 }
                 break;
 
-            case Midi::channelPressureStatus:    // aka AfterTouch
+            case MidiParser::channelPressureStatus:    // aka AfterTouch
                 current_status = *ptr;          // Remember valid status, in case we encounter a running status byte next time!
                 if (len >= 2)
                 {
@@ -1005,7 +1005,7 @@ void Midi::Update(uint8_t *spi_data) {
                 }
                 break;
 
-            case Midi::pitchBendStatus:        // 14bit Pitchbend (will be handled bipolarily)
+            case MidiParser::pitchBendStatus:        // 14bit Pitchbend (will be handled bipolarily)
                 current_status = *ptr;          // Remember valid status, in case we encounter a running status byte next time!
                 if (len >= 3)                   // Message has suitable length
                 {
@@ -1029,7 +1029,7 @@ void Midi::Update(uint8_t *spi_data) {
                 }
                 break;
 
-            case Midi::controlChangeStatus:     // Including Bank and Subbank information
+            case MidiParser::controlChangeStatus:     // Including Bank and Subbank information
                 current_status = *ptr;          // Remember valid status, in case we encounter a running status byte next time!
                 if (len >= 3)                    // Message has correct lenght
                 {
@@ -1053,7 +1053,7 @@ void Midi::Update(uint8_t *spi_data) {
                 }
                 break;
 
-            case Midi::programChangeStatus:     // We accept ProgramChange events as a kind of continuous controls, too
+            case MidiParser::programChangeStatus:     // We accept ProgramChange events as a kind of continuous controls, too
                 current_status = *ptr;          // Remember valid status, in case we encounter a running status byte next time!
                 if (len >= 2)
                 {

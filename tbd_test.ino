@@ -4,7 +4,7 @@
 #warning "All Serial1 Monitor Output is on Serial1"
 #endif
 
-#include "Midi.h"
+#include "MidiParser.h"
 #include "Ui.h"
 
 Ui ui; // UI handling
@@ -70,7 +70,7 @@ void setup()
   SPI1.setSCK(SPI1_SCLK);
   SPI1.begin(true); // hw CS assertion
 
-  Midi::Init(); // Initialize MIDI handling
+  MidiParser::Init(); // Initialize MIDI handling
 
   // WS sync to codec
   pinMode(WS_PIN, INPUT); // Configure button pin with pull-up resistor
@@ -122,7 +122,7 @@ void ws_sync_cb(){
       // swap buffers
       current_trans ^= 0x1;
       // process MIDI messages and get ready for next transfer
-      Midi::Update(spi_trans[current_trans].out_buf + 2); // skip fingerprint bytes
+      MidiParser::Update(spi_trans[current_trans].out_buf + 2); // skip fingerprint bytes
     }
     
     // toggle indicator LED
@@ -199,7 +199,7 @@ void tuh_midi_rx_cb(uint8_t dev_addr, uint32_t num_packets)
         // blink a bit to indicate that we received a MIDI message
         digitalWrite(LED_GREEN, led_state);
         led_state = !led_state;
-        Midi::QueueData(buffer, bytes_read); // queue the data for processing
+        MidiParser::QueueData(buffer, bytes_read); // queue the data for processing
       }
     }
   }
