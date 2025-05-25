@@ -69,7 +69,7 @@ SoftwareSPI *softSPI;
 #define SPI1_MISO 28
 #define SPI1_CS 29
 //#define SPI_BUFFER_LEN 64
-#define SPI_BUFFER_LEN 2048
+#define SPI_BUFFER_LEN 512
 SPISettings spiSettings(SPI_SPEED, MSBFIRST, SPI_MODE3);
 
 // transfer structure is
@@ -100,6 +100,10 @@ const uint8_t rgb_led_mcl = 20;
 void setup()
 {
   // SPI data init
+  spi_trans[0].out_buf[0] = 0xCA; // fingerprint
+  spi_trans[0].out_buf[1] = 0xFE; // fingerprint
+  spi_trans[1].out_buf[0] = 0xCA; // fingerprint
+  spi_trans[1].out_buf[1] = 0xFE; // fingerprint
   current_trans = 0;
 
   SPI1.setMISO(SPI1_MISO);
@@ -160,12 +164,7 @@ void loop()
   // update midi host
   USBHost.task();
   bool connected = midi_dev_addr != 0 && tuh_midi_configured(midi_dev_addr);
-  // check if we should process MIDI messages
-  if (bShouldProcessMidi) {
-    bShouldProcessMidi = false; // reset flag
-    // Process MIDI messages and prepare data for SPI transfer
-    Midi::Update(spi_trans[current_trans].out_buf);
-  }
+
 }
 
 void loop1(){
@@ -304,8 +303,8 @@ void ws_sync_cb(){
       SPI1.transferAsync(spi_trans[current_trans].out_buf, spi_trans[current_trans].in_buf, SPI_BUFFER_LEN);
       // swap buffers
       current_trans ^= 0x1;
-      // indicate that we should process MIDI messages
-      bShouldProcessMidi = true;
+      // process MIDI messages and get ready for next transfer
+      Midi::Update(spi_trans[current_trans].out_buf + 2); // skip fingerprint bytes
     }
     
     // toggle indicator LED

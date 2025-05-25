@@ -745,10 +745,9 @@ void Midi::noteOff(uint8_t* msg)
 //#define RX_BUF_SIZE 128
 //#define MIDI_BUF_SZ (RX_BUF_SIZE+32)
 #define MIDI_BUF_SZ (256)
-// ### #define DEBUG_MIDI  true    // ### MB20231219
 
 // --- Calculate size of buffer for "CV" and "Gate/Trigger" values to be exchanged with audio-thread / plugins ---
-#define DATA_SZ  (N_CVS * 4 + N_TRIGS + 2)
+#define DATA_SZ  (N_CVS * 4 + N_TRIGS + 2) // why +2, no idea!
 
 // --- Instanciate objects for lowlevel and highlevel MIDI processing ---// UART reader (and writer) for MIDI-messages
 static Midi distribute;     // Instanciate Midi-Class as object for MIDI-message distribution, according to events mapped via WebUI
@@ -761,22 +760,6 @@ static uint8_t *midi_note_trig = &buf0[N_CVS * 4];  // Triggers: Array of Bytes,
 // --- MIDI incomind messages buffer to be read via UART ---
 static uint8_t msgBuffer[MIDI_BUF_SZ]; // ## ??? Message-buffer for MIDI-parsing with added alligned space, in principle we only need 130 (128+2) Byte, though...
 
-#ifdef DEBUG_MIDI
-// debug queue
-    #include <freertos/queue.h>
-    QueueHandle_t debug_queue;
-    struct debug_msg {
-        uint32_t value;
-        uint32_t max;
-    };
-    static void debug_task(void *) {
-        debug_msg msg;
-        while (true) {
-            xQueueReceive(debug_queue, &msg, portMAX_DELAY);
-            ESP_LOGE("Midi", "Buffer status: %li, maximum filling %li", msg.value, msg.max);
-        }
-    }
-#endif
 
 
 // === Persistant variables for MIDI-parsing ===
@@ -807,12 +790,11 @@ void Midi::Init() {
     memset(midi_note_trig, 1,
            N_TRIGS);             // Reset "virtual Gate/Trigger"-data at startup (1==off aka TRIG_OFF)
     distribute.setCVandTriggerPointers(midi_data, midi_note_trig);    // Pass on pointer to CV and Trigger shared data
-    //DRIVERS::rp2040_spi_stream::Init();
 }
 
 // queue data for MIDI messages to be processed, returns the length of the queued data to identify if everything was queued
 uint32_t Midi::QueueData(uint8_t *data, uint32_t size) {
-    if(missing_bytes_offset + size < (MIDI_BUF_SZ - 32)){
+    if(missing_bytes_offset + size > (MIDI_BUF_SZ - 32)){
         return 0; // Not enough space in buffer, so we don't queue anything
     }
     memcpy(&msgBuffer[missing_bytes_offset + len], data, size);
@@ -823,6 +805,7 @@ uint32_t Midi::QueueData(uint8_t *data, uint32_t size) {
 // ===  MIDI-parsing method (Please note: Running status is not processed correctly with this implementation!) ===
 void Midi::Update(uint8_t *spi_data) {
     if (len == 0){
+        // copy old data to spi_data if no new data is available
         memcpy(spi_data, buf0, DATA_SZ);
         return;                // We return the identical CV / Trigger data as last round
     }
@@ -1111,6 +1094,7 @@ void Midi::Update(uint8_t *spi_data) {
                 ptr++;                          // Skip invalid byte, may be simply a MIDI-clock message for instance
         }
     }
+    // copy all processed data to spi_data buffer for transfer to audio-thread
     memcpy(spi_data, buf0, DATA_SZ);
     return;
 }
