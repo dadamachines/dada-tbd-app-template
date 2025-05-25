@@ -5,34 +5,9 @@
 #endif
 
 #include "Midi.h"
-static bool bShouldProcessMidi = false; // Flag to indicate if we should process MIDI messages, set by the WS sync interrupt
+#include "Ui.h"
 
-#include <Wire.h>
-#define I2C_SLAVE_ADDR 0x42
-#define I2C_SDA 38
-#define I2C_SCL 39
-typedef struct{
-    uint16_t pot_adc_values[8]; // raw adc values
-    uint16_t pot_positions[4]; // absolute position 0..1023
-    uint8_t pot_states[4]; // BIT0: fwd, BIT1: bwd, BIT2: fast
-    uint16_t d_btns; // BIT0-15: D1-D16
-    uint16_t d_btns_long_press; // BIT0-15: D1-D16
-    uint8_t f_btns; // BIT0: F1, BIT1: F2, BIT2: F3, BIT3: F4, BIT4: F5
-    uint8_t f_btns_long_press; // BIT0: F1, BIT1: F2, BIT2: F3, BIT3: F4, BIT4: F5
-    uint16_t mcl_btns; // BIT0: MCL1, BIT1: MCL2, BIT2: MCL3, BIT3: MCL4, BIT4: MCL5, BIT5: MCL6, BIT6: MCL7, BIT7: MCL8, BIT8: MCL9, BIT9: MCL10, BIT10: MCL11, BIT11: MCL12
-    uint16_t mcl_btns_long_press; // BIT0: MCL1, BIT1: MCL2, BIT2: MCL3, BIT3: MCL4, BIT4: MCL5, BIT5: MCL6, BIT6: MCL7, BIT7: MCL8, BIT8: MCL9, BIT9: MCL10, BIT10: MCL11, BIT11: MCL12
-    uint32_t systicks; // timestamp
-} ui_data_t;
-ui_data_t ui_data;
-
-#include <Adafruit_GFX.h>
-#include <Adafruit_SH110X.h>
-#define OLED_MOSI 15
-#define OLED_SCLK 14
-#define OLED_DC 12
-#define OLED_CS 13
-#define OLED_RST 16
-Adafruit_SH1106G *display;
+Ui ui; // UI handling
 
 #include "Adafruit_TinyUSB.h"
 //#define LANGUAGE_ID 0x0409  // English
@@ -54,16 +29,9 @@ uint8_t midi_dev_addr = 0;
 
 // sync
 #define WS_PIN 27
-unsigned long previousMillis = 0; 
 
 #include <SPI.h>
-#include <SoftwareSPI.h>
-SoftwareSPI *softSPI;
-#define SPI_SPEED 62500000 // 62.5 MHz
-#define SPI_SCLK 34
-#define SPI_MOSI 35
-#define SPI_MISO 32
-#define SPI_CS 33
+#define SPI1_SPEED 62500000 // 62.5 MHz
 #define SPI1_SCLK 30
 #define SPI1_MOSI 31
 #define SPI1_MISO 28
@@ -81,20 +49,10 @@ typedef struct{
 spi_trans_t spi_trans[2];
 uint32_t current_trans = 0;
 
-#include <Adafruit_NeoPixel.h>
-#define LED_COUNT 21
-#define LED_PIN 26
-Adafruit_NeoPixel strip(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
 
 #define LED_GREEN 24
 #include <atomic>
 std::atomic_uint32_t ws_blink = 0;
-
-const uint8_t rgb_led_rp2350 = 0;
-const uint8_t rgb_led_btn_map[] = {8, 7, 6, 5, 4, 3, 2, 1, 9, 10, 11, 12, 13, 14, 15, 16};
-const uint8_t rgb_led_fbtn_map[] = {19, 17, 18};
-const uint8_t rgb_led_mcl = 20;
-
 
 // the setup function runs once when you press reset or power the board
 void setup()
@@ -137,26 +95,7 @@ void setup()
 }
 
 void setup1(){
-  // UI STM32 communication
-  Wire1.setSDA(I2C_SDA);
-  Wire1.setSCL(I2C_SCL);
-  Wire1.setClock(400000); 
-  //Wire1.onFinishedAsync(i2c_async_done);
-  Wire1.begin();
-
-  // display init
-  // TODO: Adafruit_SH1106G.cpp in Adafruit library, change l. 139, 140 _page_start_offset = 0 to avoid display line offset!
-  softSPI = new SoftwareSPI(OLED_SCLK, OLED_DC, OLED_MOSI);
-  display = new Adafruit_SH1106G(128, 64, softSPI, OLED_DC, OLED_RST, OLED_CS);
-  display->begin(0, true);
-  display->setRotation(2);
-  display->clearDisplay();
-  display->display();
-
-  // NeoPixel init
-  strip.begin();           // INITIALIZE NeoPixel strip object (REQUIRED)
-  strip.show();            // Turn OFF all pixels ASAP
-  strip.setBrightness(10); 
+  ui.Init(); // Initialize UI handling
 }
 
 void loop()
@@ -164,131 +103,10 @@ void loop()
   // update midi host
   USBHost.task();
   bool connected = midi_dev_addr != 0 && tuh_midi_configured(midi_dev_addr);
-
 }
 
 void loop1(){
-  
-  static unsigned long tick = 0;
-  unsigned long delta = millis() - tick;
-  tick = millis();
-  static uint32_t bpm = 0;
-  // get data from stm
-  Wire1.readAsync(I2C_SLAVE_ADDR, &ui_data, sizeof(ui_data_t), true);
-  while(!Wire1.finishedAsync()) delay(1);
-  char buf[64];
-  
-  // ws indicator
-  if(ws_blink){
-    strip.setPixelColor(rgb_led_rp2350, strip.Color(255, 255, 255));
-    ws_blink = 0;
-  }else{
-    strip.setPixelColor(rgb_led_rp2350, strip.Color(0, 0, 0));
-  }
-
-  // print pots
-  display->clearDisplay();
-  display->setTextSize(1);
-  display->setTextColor(SH110X_WHITE);
-  display->setCursor(0, 0);
-  display->printf("%04d %04d %04d %04d\n", ui_data.pot_positions[0], ui_data.pot_positions[1], ui_data.pot_positions[2], ui_data.pot_positions[3]);
-  
-  for(int i=0, j=0;i<4;i++){
-    if(ui_data.pot_states[i] & (1 << 0)) buf[j++] = '1'; else buf[j++] = '0';
-    if(ui_data.pot_states[i] & (1 << 1)) buf[j++] = '1'; else buf[j++] = '0';
-  }
-  buf[8] = 0;
-  display->printf("%s\n", buf);
-
-  // print dbuttons
-  for(int i=0;i<16;i++){
-    if(ui_data.d_btns & (1 << i)){
-      buf[i] = '1'; 
-      strip.setPixelColor(rgb_led_btn_map[i], strip.Color(0, 255, 0));
-    }else{
-      buf[i] = '0';
-      strip.setPixelColor(rgb_led_btn_map[i], strip.Color(64, 64, 64));
-    }
-    if(ui_data.d_btns_long_press & (1 << i)){
-      buf[i] = 'L';
-      strip.setPixelColor(rgb_led_btn_map[i], strip.Color(255, 0, 0));
-    }
-  }
-  buf[16] = 0;
-  display->printf("%s\n", buf);
-
-  // print fbuttons
-  if (ui_data.f_btns & (1 << 4))
-    strip.setPixelColor(rgb_led_fbtn_map[0], strip.Color(0, 255, 0));
-  else
-    strip.setPixelColor(rgb_led_fbtn_map[0], strip.Color(64, 64, 64));
-  if (ui_data.f_btns_long_press & (1 << 4))
-    strip.setPixelColor(rgb_led_fbtn_map[0], strip.Color(255, 0, 0));
-
-  if (ui_data.f_btns & (1 << 2))
-    strip.setPixelColor(rgb_led_fbtn_map[1], strip.Color(0, 255, 0));
-  else
-    strip.setPixelColor(rgb_led_fbtn_map[1], strip.Color(64, 64, 64));
-  if (ui_data.f_btns_long_press & (1 << 2))
-    strip.setPixelColor(rgb_led_fbtn_map[1], strip.Color(255, 0, 0)); 
-
-  if (ui_data.f_btns & (1 << 0))
-    strip.setPixelColor(rgb_led_fbtn_map[2], strip.Color(0, 255, 0));
-  else
-    strip.setPixelColor(rgb_led_fbtn_map[2], strip.Color(64, 64, 64));
-  if (ui_data.f_btns_long_press & (1 << 0))
-    strip.setPixelColor(rgb_led_fbtn_map[2], strip.Color(255, 0, 0)); 
-
-
-  for(int i=0;i<5;i++){
-    if(ui_data.f_btns & (1 << i)){
-      buf[i] = '1'; 
-    }
-    else{
-      buf[i] = '0';
-    }
-    if(ui_data.f_btns_long_press & (1 << i)){
-      buf[i] = 'L';    
-    } 
-  }
-  buf[5] = 0;
-  display->printf("%s\n", buf);
-
-  // print mcl buttons  
-  if (ui_data.mcl_btns & (1 << 1))
-    strip.setPixelColor(rgb_led_mcl, strip.Color(0, 255, 0));
-  else
-    strip.setPixelColor(rgb_led_mcl, strip.Color(64, 64, 64));
-  if (ui_data.mcl_btns_long_press & (1 << 1))
-    strip.setPixelColor(rgb_led_mcl, strip.Color(255, 0, 0));
-
-  for(int i=0;i<13;i++){
-    if(ui_data.mcl_btns & (1 << i)){
-      buf[i] = '1'; 
-    }
-    else{
-      buf[i] = '0';
-    }
-    if(ui_data.mcl_btns_long_press & (1 << i)){
-      buf[i] = 'L';    
-    } 
-  }
-  buf[13] = 0;
-  display->printf("%s\n", buf);
-
-
-  display->printf("FPS %dHz, MSPF %dms\n", 1000 / delta, delta);
-  
-  // 120 bpm indicator approx.
-  if(bpm > 71){
-    strip.setPixelColor(rgb_led_mcl, strip.Color(255, 255, 255));
-    bpm = 0;
-  }
-  bpm++;
-  
-  display->display();
-  strip.show();  
-  
+  ui.Update(); // Update UI handling
 }
 
 void ws_sync_cb(){
@@ -310,9 +128,7 @@ void ws_sync_cb(){
     // toggle indicator LED
     static bool led_state = false;
     if (cnt % 44100 == 0){
-        ws_blink = 1;
-        //digitalWrite(LED_GREEN, led_state);
-        //led_state = !led_state;
+        ui.WSSync(); // update UI with sync
     }
 }
 
