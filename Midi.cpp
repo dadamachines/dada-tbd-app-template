@@ -810,41 +810,26 @@ void Midi::Init() {
     //DRIVERS::rp2040_spi_stream::Init();
 }
 
-// ===  MIDI-parsing method (Please note: Running status is not processed correctly with this implementation!) ===
-uint8_t *Midi::Update() {
-    // --- Check if we have "leftover" data to be processed or if we need to ask for new MIDI-messages via polling ---
-    if (len == 0)                        // Only read new buffer if we ran out of data
-    {
-        // get all available MIDI messages from USB
-        uint32_t len2{0};
-
-        /* ==================================================================
-        while (tud_midi_available() && missing_bytes_offset + len2 < (MIDI_BUF_SZ - 32))
-        { // safety margin 32 bytes
-
-            tud_midi_n_stream_read
-            read = tud_midi_packet_read(packet);
-            if (read)
-            {
-                memcpy(&msgBuffer[missing_bytes_offset + len2], &packet[1], 3); // first USB Midi byte is the cable number, we don't need it
-                len2 += 3;
-            }
-        }
-        ================================================================== */
-        //len2 = CTAG::DRIVERS::tusb::Read(&msgBuffer[missing_bytes_offset], MIDI_BUF_SZ - 32);
-        len += len2;
-
-        // get all messages from rp2040
-        //len += DRIVERS::rp2040_spi_stream::Read(&msgBuffer[missing_bytes_offset + len], MIDI_BUF_SZ - 32 - len);
-
-        if (len == 0)                   // Nothing to process now, better luck next time?
-            return buf0;                // We return the identical CV / Trigger data as last round
-
-        ptr = msgBuffer;                // We found a new message (or several new messages), reassign message-pointer!
-        len += missing_bytes_offset;    // We may have incomplete messages from last round to process here, so we add their (partial) length, zero otherwise!
-        missing_bytes_offset = 0;       // Reset missing-bytes counter, may be rearranged with next incomplete message due to incomplete buffering
-
+// queue data for MIDI messages to be processed, returns the length of the queued data to identify if everything was queued
+uint32_t Midi::QueueData(uint8_t *data, uint32_t size) {
+    if(missing_bytes_offset + size < (MIDI_BUF_SZ - 32)){
+        return 0; // Not enough space in buffer, so we don't queue anything
     }
+    memcpy(&msgBuffer[missing_bytes_offset + len], data, size);
+    len += size; // Increase length of buffer by size of data queued
+    return size; // Return the size of data queued
+}
+
+// ===  MIDI-parsing method (Please note: Running status is not processed correctly with this implementation!) ===
+void Midi::Update(uint8_t *spi_data) {
+    if (len == 0){
+        memcpy(spi_data, buf0, DATA_SZ);
+        return;                // We return the identical CV / Trigger data as last round
+    }
+
+    ptr = msgBuffer; // Set pointer to beginning of message-buffer, so we can parse it
+    len += missing_bytes_offset;    // We may have incomplete messages from last round to process here, so we add their (partial) length, zero otherwise!
+    missing_bytes_offset = 0;
 
     // --- Parse incoming MIDI-Channel-Voice-Messages and distribute to equivalent handler-methods ---
     while (len > 0)                                 // Read complete buffer at once
@@ -1126,5 +1111,6 @@ uint8_t *Midi::Update() {
                 ptr++;                          // Skip invalid byte, may be simply a MIDI-clock message for instance
         }
     }
-    return buf0;
+    memcpy(spi_data, buf0, DATA_SZ);
+    return;
 }

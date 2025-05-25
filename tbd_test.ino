@@ -5,6 +5,7 @@
 #endif
 
 #include "Midi.h"
+static bool bShouldProcessMidi = false; // Flag to indicate if we should process MIDI messages, set by the WS sync interrupt
 
 #include <Wire.h>
 #define I2C_SLAVE_ADDR 0x42
@@ -75,8 +76,6 @@ SPISettings spiSettings(SPI_SPEED, MSBFIRST, SPI_MODE3);
 // byte 0, 1 -> 0xCA 0xFE (fingerprint)
 // byte 2 -> amount of data bytes (max. 64 - 3)
 typedef struct{
-    uint8_t *magic1, *magic2; // points at magic numbers
-    uint8_t *wpos; // points at size field
     uint8_t out_buf[SPI_BUFFER_LEN], in_buf[SPI_BUFFER_LEN]; // actual buffers
 } spi_trans_t;
 spi_trans_t spi_trans[2];
@@ -101,22 +100,7 @@ const uint8_t rgb_led_mcl = 20;
 void setup()
 {
   // SPI data init
-    // init global spi dma buffers
-  // protocol is magic number 0xCAFE, 1 byte for length of message
-  // max message length is 64 - 3 bytes
   current_trans = 0;
-  spi_trans[0].magic1 = &spi_trans[0].out_buf[0];
-  spi_trans[0].magic2 = &spi_trans[0].out_buf[1];
-  spi_trans[0].wpos = &spi_trans[0].out_buf[2];
-  *spi_trans[0].magic1 = 0xCA;
-  *spi_trans[0].magic2 = 0xFE;
-  *spi_trans[0].wpos = 0x00;
-  spi_trans[1].magic1 = &spi_trans[1].out_buf[0];
-  spi_trans[1].magic2 = &spi_trans[1].out_buf[1];
-  spi_trans[1].wpos = &spi_trans[1].out_buf[2];
-  *spi_trans[1].magic1 = 0xCA;
-  *spi_trans[1].magic2 = 0xFE;
-  *spi_trans[1].wpos = 0x00;
 
   SPI1.setMISO(SPI1_MISO);
   SPI1.setMOSI(SPI1_MOSI);
@@ -124,13 +108,14 @@ void setup()
   SPI1.setSCK(SPI1_SCLK);
   SPI1.begin(true); // hw CS assertion
 
-	Midi::Init(); // Initialize MIDI handling
+  Midi::Init(); // Initialize MIDI handling
 
   // WS sync to codec
   pinMode(WS_PIN, INPUT); // Configure button pin with pull-up resistor
   pinMode(LED_GREEN, OUTPUT);
   attachInterrupt(digitalPinToInterrupt(WS_PIN), ws_sync_cb, FALLING);
 
+  // USB Host init
   pinMode(USBA_PWR_ENA_GPIO, OUTPUT);
   pinMode(USBA_SEL_GPIO, OUTPUT);
   digitalWrite(USBA_PWR_ENA_GPIO, true);
@@ -142,31 +127,21 @@ void setup()
   // Optionally, configure the buffer sizes here
   // The commented out code shows the default values
   // tuh_midih_define_limits(64, 64, 16);
-
-
-
   USBHost.begin(0); // 0 means use native RP2040 host
 
   Serial1.println("TinyUSB MIDI Host Example");
 }
 
 void setup1(){
-  
+  // UI STM32 communication
   Wire1.setSDA(I2C_SDA);
   Wire1.setSCL(I2C_SCL);
   Wire1.setClock(400000); 
   //Wire1.onFinishedAsync(i2c_async_done);
   Wire1.begin();
 
-  /*
-  SPI1.setMISO(OLED_DC);
-  SPI1.setMOSI(OLED_MOSI);
-  SPI1.setCS(OLED_CS);
-  SPI1.setSCK(OLED_SCLK);
-  */
-  //SPI1.begin(true); // hw CS assertion
+  // display init
   // TODO: Adafruit_SH1106G.cpp in Adafruit library, change l. 139, 140 _page_start_offset = 0 to avoid display line offset!
-  //display = new Adafruit_SH1106G(128, 64, &SPI1, OLED_DC, OLED_RST, OLED_CS);
   softSPI = new SoftwareSPI(OLED_SCLK, OLED_DC, OLED_MOSI);
   display = new Adafruit_SH1106G(128, 64, softSPI, OLED_DC, OLED_RST, OLED_CS);
   display->begin(0, true);
@@ -174,7 +149,7 @@ void setup1(){
   display->clearDisplay();
   display->display();
 
-  
+  // NeoPixel init
   strip.begin();           // INITIALIZE NeoPixel strip object (REQUIRED)
   strip.show();            // Turn OFF all pixels ASAP
   strip.setBrightness(10); 
@@ -182,9 +157,15 @@ void setup1(){
 
 void loop()
 {
+  // update midi host
   USBHost.task();
-
   bool connected = midi_dev_addr != 0 && tuh_midi_configured(midi_dev_addr);
+  // check if we should process MIDI messages
+  if (bShouldProcessMidi) {
+    bShouldProcessMidi = false; // reset flag
+    // Process MIDI messages and prepare data for SPI transfer
+    Midi::Update(spi_trans[current_trans].out_buf);
+  }
 }
 
 void loop1(){
@@ -323,8 +304,8 @@ void ws_sync_cb(){
       SPI1.transferAsync(spi_trans[current_trans].out_buf, spi_trans[current_trans].in_buf, SPI_BUFFER_LEN);
       // swap buffers
       current_trans ^= 0x1;
-      // reset buffer state
-      *(spi_trans[current_trans].wpos) = 0;
+      // indicate that we should process MIDI messages
+      bShouldProcessMidi = true;
     }
     
     // toggle indicator LED
@@ -335,7 +316,6 @@ void ws_sync_cb(){
         //led_state = !led_state;
     }
 }
-
 
 //--------------------------------------------------------------------+
 // TinyUSB Host callbacks
@@ -401,23 +381,10 @@ void tuh_midi_rx_cb(uint8_t dev_addr, uint32_t num_packets)
       while (1) {
         uint32_t bytes_read = tuh_midi_stream_read(dev_addr, &cable_num, buffer, sizeof(buffer));
         if (bytes_read == 0) return;
+        // blink a bit to indicate that we received a MIDI message
         digitalWrite(LED_GREEN, led_state);
         led_state = !led_state;
-        // place the message in the SPI buffer
-        spi_trans_t *current_trans_ptr = &spi_trans[current_trans];
-        uint8_t *wpos = current_trans_ptr->wpos;
-        // safety check for buffer size
-        if(*wpos > 32 + 3){ // 32 is max buffer size for USB HOST MIDI data, 3 is magic numbers and length
-            printf("usb midi message too long %d!\r\n", *wpos);
-        }else{
-            uint8_t *out_buf = current_trans_ptr->out_buf + *wpos + 3; // add 3 for magic numbers and length
-            memcpy(out_buf, buffer, bytes_read);
-            *wpos += (uint8_t)bytes_read;
-            // send the message to the midi uart out
-            // TODO may block when a lot of data comes in from USB
-            // TX fifo is 32 bytes deep
-            //uart_write_blocking(UART_ID, buffer, bytes_read);
-        }
+        Midi::QueueData(buffer, bytes_read); // queue the data for processing
       }
     }
   }

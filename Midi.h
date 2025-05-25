@@ -71,7 +71,9 @@ class Midi final
 
         static void Init();
 
-        static uint8_t *Update();
+        static void Update(uint8_t *spi_data);
+
+        static uint32_t QueueData( uint8_t* data, uint32_t size );
 
         enum midiStatusValues
         {
