@@ -741,34 +741,6 @@ void MidiParser::noteOff(uint8_t* msg)
 }
 
 
-// Provide methods and data for MIDI-message processing and communiction of detected events to audio-thread
-//#define RX_BUF_SIZE 128
-//#define MIDI_BUF_SZ (RX_BUF_SIZE+32)
-#define MIDI_BUF_SZ (256)
-
-// --- Calculate size of buffer for "CV" and "Gate/Trigger" values to be exchanged with audio-thread / plugins ---
-#define DATA_SZ  (N_CVS * 4 + N_TRIGS + 2) // why +2, no idea!
-
-// --- Instanciate objects for lowlevel and highlevel MIDI processing ---// UART reader (and writer) for MIDI-messages
-static MidiParser distribute;     // Instanciate Midi-Class as object for MIDI-message distribution, according to events mapped via WebUI
-
-// === Buffer to pass on MIDI-Event as virtual CV and Gate 'voltages', normalized to -1.f...+1.f (CV) and 0 or 1 integers (Triggers/Gates) ===
-static uint8_t buf0[DATA_SZ];     // Common Array of Data for CVs and Triggers, will be passed on at audio-rate, so that Plugins can process this data
-static float *midi_data = (float *) buf0; // CVs: Array of floats, positioned directly before Triggers in a common array for CVs+Triggers
-static uint8_t *midi_note_trig = &buf0[N_CVS * 4];  // Triggers: Array of Bytes, positioned directly behind CVs in a common array for CVs+Triggers
-
-// --- MIDI incomind messages buffer to be read via UART ---
-static uint8_t msgBuffer[MIDI_BUF_SZ]; // ## ??? Message-buffer for MIDI-parsing with added alligned space, in principle we only need 130 (128+2) Byte, though...
-
-
-
-// === Persistant variables for MIDI-parsing ===
-static uint8_t missing_bytes_offset = 0;   // We may have to add that before we fetch our next buffer?
-static uint32_t len = 0;
-static uint8_t *ptr = NULL;
-static uint8_t current_status = 0;    // Current status byte to be remembered in case of a running-status situation
-static uint8_t loc_msg[8];            // Local message to be constructed in a running-status situation
-
 // --- The macro below is used to exit the parser in case there is an invalid 2byte message: statusbyte when only data is expected ---
 #define SUPRESS_INVALID_3BYTE_MESSAGE(p_loc) \
                 if( (*(p_loc+1))&0x80 )           \
@@ -789,12 +761,12 @@ void MidiParser::Init() {
     memset(buf0, 0, DATA_SZ);                       // Reset "virtual CV"-data at startup
     memset(midi_note_trig, 1,
            N_TRIGS);             // Reset "virtual Gate/Trigger"-data at startup (1==off aka TRIG_OFF)
-    distribute.setCVandTriggerPointers(midi_data, midi_note_trig);    // Pass on pointer to CV and Trigger shared data
+    setCVandTriggerPointers(midi_data, midi_note_trig);    // Pass on pointer to CV and Trigger shared data
 }
 
 // queue data for MIDI messages to be processed, returns the length of the queued data to identify if everything was queued
 uint32_t MidiParser::QueueData(uint8_t *data, uint32_t size) {
-    if(missing_bytes_offset + size > (MIDI_BUF_SZ - 32)){
+    if(missing_bytes_offset + len + size > (MIDI_BUF_SZ - 32)){
         return 0; // Not enough space in buffer, so we don't queue anything
     }
     memcpy(&msgBuffer[missing_bytes_offset + len], data, size);
@@ -832,7 +804,7 @@ void MidiParser::Update(uint8_t *spi_data) {
                         loc_msg[1] = *ptr;
                         loc_msg[2] = *(ptr+1);
                         SUPRESS_INVALID_3BYTE_MESSAGE(loc_msg);
-                        distribute.noteOn(loc_msg);     // Process message and fill buffer for virtual CV/Gates which can be looked up from plugin if tagged via WebUI
+                        noteOn(loc_msg);     // Process message and fill buffer for virtual CV/Gates which can be looked up from plugin if tagged via WebUI
                         len -= 2;                   // Noteon Messages have 3 byte, we already read the status byte
                         ptr += 2;                   // Advance buffer-pointer to next message for next round of parsing
                     }
@@ -852,7 +824,7 @@ void MidiParser::Update(uint8_t *spi_data) {
                         loc_msg[1] = *ptr;
                         loc_msg[2] = *(ptr+1);
                         SUPRESS_INVALID_3BYTE_MESSAGE(loc_msg);
-                        distribute.noteOff(loc_msg);
+                        noteOff(loc_msg);
                         ptr += 2;                   // Advance buffer-pointer to next message for next round of parsing
                         len -= 2;                   // Noteoff Messages have 3 byte, we already read the status byte
                     }
@@ -871,7 +843,7 @@ void MidiParser::Update(uint8_t *spi_data) {
                     {
                         loc_msg[1] = *ptr;
                         SUPRESS_INVALID_2BYTE_MESSAGE(loc_msg);
-                        distribute.channelPressure(loc_msg);    // Process message and fill buffer for virtual CV/Gates which can be looked up from plugin if tagged via WebUI
+                        channelPressure(loc_msg);    // Process message and fill buffer for virtual CV/Gates which can be looked up from plugin if tagged via WebUI
                         len -= 1;                   // ChannelPressure Messages have 2 byte, we already read the status byte
                         ptr += 1;                   // Advance buffer-pointer to next message for next round of parsing
                     }
@@ -889,7 +861,7 @@ void MidiParser::Update(uint8_t *spi_data) {
                         loc_msg[1] = *ptr;
                         loc_msg[2] = *(ptr+1);
                         SUPRESS_INVALID_3BYTE_MESSAGE(loc_msg);
-                        distribute.pitchBend(loc_msg);  // Process message and fill buffer for virtual CV/Gates which can be looked up from plugin if tagged via WebUI
+                        pitchBend(loc_msg);  // Process message and fill buffer for virtual CV/Gates which can be looked up from plugin if tagged via WebUI
                         len -= 2;                   // Pitchshift Messages have 3 byte, we already read the status byte
                         ptr += 2;                   // Advance buffer-pointer to next messager for next round of parsing
                     }
@@ -909,7 +881,7 @@ void MidiParser::Update(uint8_t *spi_data) {
                         loc_msg[1] = *ptr;
                         loc_msg[2] = *(ptr+1);
                         SUPRESS_INVALID_3BYTE_MESSAGE(loc_msg);
-                        distribute.controlChange(loc_msg);  // Process message and fill buffer for virtual CV/Gates which can be looked up from plugin if tagged via WebUI
+                        controlChange(loc_msg);  // Process message and fill buffer for virtual CV/Gates which can be looked up from plugin if tagged via WebUI
                         len -= 2;                   // Continuous Controller Messages have 3 byte, we already read the status byte
                         ptr += 2;                   // Advance buffer-pointer to next message for next round of parsing
                     }
@@ -928,7 +900,7 @@ void MidiParser::Update(uint8_t *spi_data) {
                     {
                         loc_msg[1] = *ptr;
                         SUPRESS_INVALID_2BYTE_MESSAGE(loc_msg);
-                        distribute.programChange(loc_msg);  // Process message and fill buffer for virtual CV/Gates which can be looked up from plugin if tagged via WebUI
+                        programChange(loc_msg);  // Process message and fill buffer for virtual CV/Gates which can be looked up from plugin if tagged via WebUI
                         len -= 1;                   // Program Change Messages have 3 byte, we already read the status byte
                         ptr += 1;                   // Advance buffer-pointer to next messager for next round of parsing
                     }
@@ -950,7 +922,7 @@ void MidiParser::Update(uint8_t *spi_data) {
                 if (len >= 3)                   // Message-Lenght as expected
                 {
                     SUPRESS_INVALID_3BYTE_MESSAGE(ptr);
-                    distribute.noteOn(ptr);     // Process message and fill buffer for virtual CV/Gates which can be looked up from plugin if tagged via WebUI
+                    noteOn(ptr);     // Process message and fill buffer for virtual CV/Gates which can be looked up from plugin if tagged via WebUI
                     len -= 3;                   // Noteon Messages have 3 byte, we already read the status byte
                     ptr += 3;                   // Advance buffer-pointer to next message for next round of parsing
                 }
@@ -969,7 +941,7 @@ void MidiParser::Update(uint8_t *spi_data) {
                 if (len >= 3)
                 {
                     SUPRESS_INVALID_3BYTE_MESSAGE(ptr);
-                    distribute.noteOff(ptr);
+                    noteOff(ptr);
                     ptr += 3;                   // Advance buffer-pointer to next message for next round of parsing
                     len -= 3;                   // Noteoff Messages have 3 byte, we already read the status byte
                 }
@@ -993,7 +965,7 @@ void MidiParser::Update(uint8_t *spi_data) {
                         ptr += 2;   // Overread current redundant pitchbend, it can't be validated by the audiothread anyhow, because we read the current MIDI-buffer in one go
                     }
                     SUPRESS_INVALID_2BYTE_MESSAGE(ptr);
-                    distribute.channelPressure(ptr);    // Process message and fill buffer for virtual CV/Gates which can be looked up from plugin if tagged via WebUI
+                    channelPressure(ptr);    // Process message and fill buffer for virtual CV/Gates which can be looked up from plugin if tagged via WebUI
                     len -= 2;                   // ChannelPressure Messages have 2 byte, we already read the status byte
                     ptr += 2;                   // Advance buffer-pointer to next message for next round of parsing
                 }
@@ -1015,7 +987,7 @@ void MidiParser::Update(uint8_t *spi_data) {
                         ptr += 3;   // Overread current redundant pitchbend, it can't be validated by the audiothread anyhow, because we read the current MIDI-buffer in one go
                     }
                     SUPRESS_INVALID_3BYTE_MESSAGE(ptr);
-                    distribute.pitchBend(ptr);  // Process message and fill buffer for virtual CV/Gates which can be looked up from plugin if tagged via WebUI
+                    pitchBend(ptr);  // Process message and fill buffer for virtual CV/Gates which can be looked up from plugin if tagged via WebUI
                     len -= 3;                   // Pitchshift Messages have 3 byte, we already read the status byte
                     ptr += 3;                   // Advance buffer-pointer to next messager for next round of parsing
                 }
@@ -1039,7 +1011,7 @@ void MidiParser::Update(uint8_t *spi_data) {
                         ptr += 3;   // Overread current redundant pitchbend, it can't be validated by the audiothread anyhow, because we read the current MIDI-buffer in one go
                     }
                     SUPRESS_INVALID_3BYTE_MESSAGE(ptr);
-                    distribute.controlChange(ptr);  // Process message and fill buffer for virtual CV/Gates which can be looked up from plugin if tagged via WebUI
+                    controlChange(ptr);  // Process message and fill buffer for virtual CV/Gates which can be looked up from plugin if tagged via WebUI
                     len -= 3;                   // Continuous Controller Messages have 3 byte, we already read the status byte
                     ptr += 3;                   // Advance buffer-pointer to next message for next round of parsing
                 }
@@ -1063,7 +1035,7 @@ void MidiParser::Update(uint8_t *spi_data) {
                         ptr += 2;   // Overread current redundant pitchbend, it can't be validated by the audiothread anyhow, because we read the current MIDI-buffer in one go
                     }
                     SUPRESS_INVALID_2BYTE_MESSAGE(ptr);
-                    distribute.programChange(ptr);  // Process message and fill buffer for virtual CV/Gates which can be looked up from plugin if tagged via WebUI
+                    programChange(ptr);  // Process message and fill buffer for virtual CV/Gates which can be looked up from plugin if tagged via WebUI
                     len -= 2;                   // Program Change Messages have 3 byte, we already read the status byte
                     ptr += 2;                   // Advance buffer-pointer to next messager for next round of parsing
                 }

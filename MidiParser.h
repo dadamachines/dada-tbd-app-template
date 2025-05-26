@@ -67,13 +67,37 @@ respective component folders / files if different from this license.
 
 class MidiParser final
     {
+    // Provide methods and data for MIDI-message processing and communiction of detected events to audio-thread
+    //#define RX_BUF_SIZE 128
+    //#define MIDI_BUF_SZ (RX_BUF_SIZE+32)
+    #define MIDI_BUF_SZ (256)
+
+    // --- Calculate size of buffer for "CV" and "Gate/Trigger" values to be exchanged with audio-thread / plugins ---
+    #define DATA_SZ  (N_CVS * 4 + N_TRIGS + 2) // why +2, no idea!
+
+    // === Buffer to pass on MIDI-Event as virtual CV and Gate 'voltages', normalized to -1.f...+1.f (CV) and 0 or 1 integers (Triggers/Gates) ===
+    uint8_t buf0[DATA_SZ];     // Common Array of Data for CVs and Triggers, will be passed on at audio-rate, so that Plugins can process this data
+    float *midi_data = (float *) buf0; // CVs: Array of floats, positioned directly before Triggers in a common array for CVs+Triggers
+    uint8_t *midi_note_trig = &buf0[N_CVS * 4];  // Triggers: Array of Bytes, positioned directly behind CVs in a common array for CVs+Triggers
+
+    // --- MIDI incomind messages buffer to be read via UART ---
+    uint8_t msgBuffer[MIDI_BUF_SZ]; // ## ??? Message-buffer for MIDI-parsing with added alligned space, in principle we only need 130 (128+2) Byte, though...
+
+
+
+    // === Persistant variables for MIDI-parsing ===
+    uint8_t missing_bytes_offset = 0;   // We may have to add that before we fetch our next buffer?
+    uint32_t len = 0;
+    uint8_t *ptr = nullptr;
+    uint8_t current_status = 0;    // Current status byte to be remembered in case of a running-status situation
+    uint8_t loc_msg[8];            // Local message to be constructed in a running-status situation
     public:
 
-        static void Init();
+        void Init();
 
-        static void Update(uint8_t *spi_data);
+        void Update(uint8_t *spi_data);
 
-        static uint32_t QueueData( uint8_t* data, uint32_t size );
+        uint32_t QueueData( uint8_t* data, uint32_t size );
 
         enum midiStatusValues
         {
