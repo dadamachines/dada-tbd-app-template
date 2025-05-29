@@ -114,6 +114,51 @@ bool SpiAPI::GetActivePlugin(const uint8_t channel, std::string& response){
     return receiveData(response, RequestType_t::GetActivePlugin);
 }
 
+bool SpiAPI::GetPresets(const uint8_t channel, std::string& response){
+    response.clear();
+    *request_type = RequestType_t::GetPresets; // request type
+    *uint8_param_0 = channel; // channel number
+    send();
+
+    return receiveData(response, RequestType_t::GetPresets);
+}
+
+
+bool SpiAPI::GetPresetData(const std::string& pluginID, std::string& response){
+    response.clear();
+    *request_type = RequestType_t::GetPresetData; // request type
+    *int32_param_2 = (uint32_t)pluginID.length(); // length of pluginID
+    uint8_t* pluginIDField = string_param_3;
+    memcpy(pluginIDField, pluginID.c_str(), pluginID.length() + 1); // copy pluginID to buffer, ensure null-termination
+    send();
+
+    return receiveData(response, RequestType_t::GetPresetData);
+}
+
+bool SpiAPI::LoadPreset(const uint8_t channel, const int8_t presetID){
+    *request_type = RequestType_t::LoadPreset; // request type
+    *uint8_param_0 = channel; // channel number
+    *uint8_param_1 = presetID; // preset ID
+    send();
+    delay(1000); // wait for TBD to execute the command
+
+    return true;
+}
+
+bool SpiAPI::SavePreset(const uint8_t channel, const std::string & presetName, const int8_t presetID){
+    *request_type = RequestType_t::SavePreset; // request type
+    *uint8_param_0 = channel; // channel number
+    *uint8_param_1 = presetID; // preset ID
+    *int32_param_2 = (uint32_t)presetName.length(); // length of presetName
+    uint8_t* param_preset_name_field = string_param_3;
+    memcpy(param_preset_name_field, presetName.c_str(), presetName.length() + 1);
+    send();
+    delay(1000); // wait for TBD to execute the command
+
+    return true;
+}
+
+
 void SpiAPI::send(){
     SPI.beginTransaction(spiSettings);
     SPI.transferAsync(out_buf, in_buf, 2048);
@@ -160,6 +205,34 @@ bool SpiAPI::SetActivePluginTrig(const uint8_t channel, const std::string& param
     memcpy(param_name_field, paramName.c_str(), paramName.length() + 1);
     send();
     return true;
+}
+
+bool SpiAPI::GetAllFavorites(std::string& response){
+    // send GetAllFavorites request
+    response.clear();
+    *request_type = RequestType_t::GetAllFavorites; // request type
+    send();
+
+    return receiveData(response, RequestType_t::GetAllFavorites);
+}
+
+bool SpiAPI::LoadFavorite(const int8_t favoriteID){
+    // send LoadFavorite request
+    *request_type = RequestType_t::LoadFavorite; // request type
+    *uint8_param_0 = favoriteID; // favorite ID
+    send();
+    delay(1000); // wait for TBD to execute the command
+
+    return true;
+}
+
+bool SpiAPI::GetConfiguration(std::string& response){
+    // send GetConfiguration request
+    response.clear();
+    *request_type = RequestType_t::GetConfiguration; // request type
+    send();
+
+    return receiveData(response, RequestType_t::GetConfiguration);
 }
 
 bool SpiAPI::GetPlugins(std::string& response){

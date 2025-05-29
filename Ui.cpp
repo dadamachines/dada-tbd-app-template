@@ -37,8 +37,7 @@ void Ui::WSSync(){
 
 void Ui::Update(){
     std::string response;
-    //spi_api.SetActivePlugin(0, "TBDeep"); // set active plugin to tbd_test
-    spi_api.GetActivePlugin(0, response);
+    spi_api.LoadPreset(0, 0); // load preset for channel 0, preset 0
 
 
     display->clearDisplay();
@@ -48,9 +47,6 @@ void Ui::Update(){
     display->printf("%s\n", response.c_str());
 
     display->display();
-    for (int i=0;i<24;i++){
-      spi_api.SetActivePluginParam(0, "frequency", i);
-    }
 
     delay(1000);
 }

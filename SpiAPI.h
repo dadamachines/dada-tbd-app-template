@@ -45,4 +45,12 @@ public:
     bool SetActivePluginParam(const uint8_t channel, const std::string& paramName, const int32_t value);
     bool SetActivePluginCV(const uint8_t channel, const std::string& paramName, const int32_t value);
     bool SetActivePluginTrig(const uint8_t channel, const std::string& paramName, const int32_t value);
+    bool GetPresets(const uint8_t channel, std::string& response);
+    bool GetPresetData(const std::string& pluginID, std::string& response);
+    bool LoadPreset(const uint8_t channel, const int8_t presetID);
+    bool SavePreset(const uint8_t channel, const std::string &presetName, const int8_t presetID);
+    bool GetAllFavorites(std::string& response);
+    bool LoadFavorite(const int8_t favoriteID);
+    bool GetConfiguration(std::string& response);
+
 };
