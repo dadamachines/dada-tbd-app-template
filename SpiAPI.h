@@ -31,6 +31,7 @@ typedef enum{
 class SpiAPI{
     bool receiveData(std::string& response, RequestType_t requestType);
     void send();
+    void sendNoDelay();
 
 public:
     void Init();
@@ -42,4 +43,6 @@ public:
     // true on success, sets active plugin for the given channel
     bool SetActivePlugin(const uint8_t channel, const std::string& pluginID);
     bool SetActivePluginParam(const uint8_t channel, const std::string& paramName, const int32_t value);
+    bool SetActivePluginCV(const uint8_t channel, const std::string& paramName, const int32_t value);
+    bool SetActivePluginTrig(const uint8_t channel, const std::string& paramName, const int32_t value);
 };

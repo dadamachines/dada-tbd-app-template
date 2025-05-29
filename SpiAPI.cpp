@@ -139,7 +139,26 @@ bool SpiAPI::SetActivePluginParam(const uint8_t channel, const std::string& para
     uint8_t* param_name_field = string_param_3;
     memcpy(param_name_field, paramName.c_str(), paramName.length() + 1);
     send();
-    delay(50);
+    return true;
+}
+
+bool SpiAPI::SetActivePluginCV(const uint8_t channel, const std::string& paramName, const int32_t value){
+    *request_type = RequestType_t::SetPluginParamCV; // request type
+    *uint8_param_0 = channel; // channel number
+    *int32_param_2 = value; // value to set
+    uint8_t* param_name_field = string_param_3;
+    memcpy(param_name_field, paramName.c_str(), paramName.length() + 1);
+    send();
+    return true;
+}
+
+bool SpiAPI::SetActivePluginTrig(const uint8_t channel, const std::string& paramName, const int32_t value){
+    *request_type = RequestType_t::SetPluginParamTRIG; // request type
+    *uint8_param_0 = channel; // channel number
+    *int32_param_2 = value; // value to set
+    uint8_t* param_name_field = string_param_3;
+    memcpy(param_name_field, paramName.c_str(), paramName.length() + 1);
+    send();
     return true;
 }
 
