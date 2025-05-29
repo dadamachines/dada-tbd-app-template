@@ -1,9 +1,7 @@
 #pragma once
 
-class Midi final {
-
+class Midi final{
 public:
-  void Init();
-  void Update();
+    void Init();
+    void Update();
 };
-

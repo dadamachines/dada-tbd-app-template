@@ -17,13 +17,6 @@
 #define OLED_CS 13
 #define OLED_RST 16
 
-// defines for spi0, RP2350 SPI stream to P4 for rest-api
-#define SPI_SPEED 62500000 // 62.5 MHz
-#define SPI_SCLK 34
-#define SPI_MOSI 35
-#define SPI_MISO 32
-#define SPI_CS 33
-
 // neopixels for UI
 #include <Adafruit_NeoPixel.h>
 #define LED_COUNT 21

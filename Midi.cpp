@@ -29,6 +29,7 @@ static SPISettings spiSettings(SPI1_SPEED, MSBFIRST, SPI_MODE3);
 typedef struct{
     uint8_t out_buf[SPI_BUFFER_LEN], in_buf[SPI_BUFFER_LEN]; // actual buffers
 } spi_trans_t;
+
 static spi_trans_t spi_trans[2];
 static uint32_t current_trans = 0;
 
@@ -47,7 +48,7 @@ static uint8_t midi_dev_addr = 0;
 
 
 #include <atomic>
-std::atomic<uint32_t> ws_sync_counter {0}; // counter for word clock sync
+std::atomic<uint32_t> ws_sync_counter{0}; // counter for word clock sync
 
 static void ws_sync_cb(){
     // sync to word clock of codec i2s @ 44100Hz
@@ -64,9 +65,9 @@ static void ws_sync_cb(){
 //--------------------------------------------------------------------+
 
 // Invoked when device is mounted (configured)
-void tuh_mount_cb (uint8_t daddr){
-  // Get Device Descriptor
-  tuh_descriptor_get_device(daddr, &desc_device, 18, NULL, 0);
+void tuh_mount_cb(uint8_t daddr){
+    // Get Device Descriptor
+    tuh_descriptor_get_device(daddr, &desc_device, 18, NULL, 0);
 }
 
 /// Invoked when device is unmounted (bus reset/unplugged)
@@ -83,34 +84,34 @@ void tuh_umount_cb(uint8_t daddr){
 // Note: if report descriptor length > CFG_TUH_ENUMERATION_BUFSIZE, it will be skipped
 // therefore report_desc = NULL, desc_len = 0
 void tuh_midi_mount_cb(uint8_t dev_addr, uint8_t in_ep, uint8_t out_ep, uint8_t num_cables_rx, uint16_t num_cables_tx){
-  if (midi_dev_addr == 0) {
-    // then no MIDI device is currently connected
-    midi_dev_addr = dev_addr;
-  }
+    if (midi_dev_addr == 0){
+        // then no MIDI device is currently connected
+        midi_dev_addr = dev_addr;
+    }
 }
 
 // Invoked when device with hid interface is un-mounted
 void tuh_midi_umount_cb(uint8_t dev_addr, uint8_t instance){
-  if (dev_addr == midi_dev_addr) {
-    midi_dev_addr = 0;
-  }
+    if (dev_addr == midi_dev_addr){
+        midi_dev_addr = 0;
+    }
 }
 
 void tuh_midi_rx_cb(uint8_t dev_addr, uint32_t num_packets){
-  if (midi_dev_addr == dev_addr) {
-    if (num_packets != 0) {
-      uint8_t cable_num;
-      uint8_t buffer[48];
-      while (1) {
-        uint32_t bytes_read = tuh_midi_stream_read(dev_addr, &cable_num, buffer, sizeof(buffer));
-        if (bytes_read == 0) return;
-        // blink a bit to indicate that we received a MIDI message
-        digitalWrite(LED_GREEN, led_state);
-        led_state = !led_state;
-        midiparser.QueueData(buffer, bytes_read); // queue the data for processing
-      }
+    if (midi_dev_addr == dev_addr){
+        if (num_packets != 0){
+            uint8_t cable_num;
+            uint8_t buffer[48];
+            while (1){
+                uint32_t bytes_read = tuh_midi_stream_read(dev_addr, &cable_num, buffer, sizeof(buffer));
+                if (bytes_read == 0) return;
+                // blink a bit to indicate that we received a MIDI message
+                digitalWrite(LED_GREEN, led_state);
+                led_state = !led_state;
+                midiparser.QueueData(buffer, bytes_read); // queue the data for processing
+            }
+        }
     }
-  }
 }
 
 void Midi::Init(){
@@ -147,18 +148,18 @@ void Midi::Init(){
 }
 
 void Midi::Update(){
-  // update midi host
-  USBHost.task();
-  bool connected = midi_dev_addr != 0 && tuh_midi_configured(midi_dev_addr);
-  if(ws_sync_counter > 0){
-    // is 44100Hz / 32 = 1378,125Hz or 725,62us
-    if(SPI1.finishedAsync()) SPI1.endTransaction();
-    SPI1.beginTransaction(spiSettings);
-    SPI1.transferAsync(spi_trans[current_trans].out_buf, spi_trans[current_trans].in_buf, SPI_BUFFER_LEN);
-    // swap buffers
-    current_trans ^= 0x1;
-    midiparser.Update(spi_trans[current_trans].out_buf + 2); // skip fingerprint bytes
-    // if we have a word clock sync, then we can update the MIDI parser
-    ws_sync_counter = 0; // reset the counter
-  }
+    // update midi host
+    USBHost.task();
+    bool connected = midi_dev_addr != 0 && tuh_midi_configured(midi_dev_addr);
+    if (ws_sync_counter > 0){
+        // is 44100Hz / 32 = 1378,125Hz or 725,62us
+        if (SPI1.finishedAsync()) SPI1.endTransaction();
+        SPI1.beginTransaction(spiSettings);
+        SPI1.transferAsync(spi_trans[current_trans].out_buf, spi_trans[current_trans].in_buf, SPI_BUFFER_LEN);
+        // swap buffers
+        current_trans ^= 0x1;
+        midiparser.Update(spi_trans[current_trans].out_buf + 2); // skip fingerprint bytes
+        // if we have a word clock sync, then we can update the MIDI parser
+        ws_sync_counter = 0; // reset the counter
+    }
 }

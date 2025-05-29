@@ -1,6 +1,14 @@
 #include "Ui.h"
+#include "SpiAPI.h"
+
+SpiAPI spi_api;
+#include <string>
+std::string PluginsJSON;
 
 void Ui::Init(){
+    // SPI API init
+    spi_api.Init();
+
     // UI STM32 communication
     Wire1.setSDA(I2C_SDA);
     Wire1.setSCL(I2C_SCL);
@@ -18,8 +26,8 @@ void Ui::Init(){
     display->display();
 
     // NeoPixel init
-    strip.begin();           // INITIALIZE NeoPixel strip object (REQUIRED)
-    strip.show();            // Turn OFF all pixels ASAP
+    strip.begin(); // INITIALIZE NeoPixel strip object (REQUIRED)
+    strip.show(); // Turn OFF all pixels ASAP
     strip.setBrightness(10);
 }
 
@@ -27,6 +35,23 @@ void Ui::WSSync(){
     ws_blink = 1; // set blink flag
 }
 
+void Ui::Update(){
+    std::string response;
+    spi_api.SetActivePlugin(0, "TBDeep"); // set active plugin to tbd_test
+    spi_api.GetActivePlugin(0, response);
+
+
+    display->clearDisplay();
+    display->setTextSize(1);
+    display->setTextColor(SH110X_WHITE);
+    display->setCursor(0, 0);
+    display->printf("%s\n", response.c_str());
+
+    display->display();
+    delay(1000);
+}
+
+/*
 void Ui::Update(){
   static unsigned long tick = 0;
   unsigned long delta = millis() - tick;
@@ -148,3 +173,4 @@ void Ui::Update(){
   display->display();
   strip.show();
 }
+*/
