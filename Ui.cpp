@@ -40,6 +40,16 @@ void Ui::displayString(const std::string &s){
     display->display();
 }
 
+void Ui::displayStringWait1s(const std::string &s){
+  display->clearDisplay();
+  display->setTextSize(1);
+  display->setTextColor(SH110X_WHITE);
+  display->setCursor(0, 0);
+  display->printf("%s\n", s.c_str());
+  display->display();
+  delay(1000);
+}
+
 void Ui::WSSync(){
     ws_blink = 1; // set blink flag
 }
@@ -50,21 +60,78 @@ void Ui::Update(){
 
 void Ui::RunSpiAPITests(){
   std::string response;
-  spi_api.GetConfiguration(response);
-  displayString(response);
-  delay(1000);
-  spi_api.SetConfiguration(response);
-  delay(1000);
-  spi_api.GetAllFavorites(response);
-  displayString(response);
-  delay(1000);
-  spi_api.SaveFavorite(response);
-  delay(1000);
+
+  displayStringWait1s("GetPlugins...");
+  spi_api.GetPlugins(response);
+  displayStringWait1s(response);
+
+  displayStringWait1s("SetActivePlugin...");
+  spi_api.SetActivePlugin(0, "SineSrc");
+  spi_api.SetActivePlugin(1, "SineSrc");
+  std::string active_plugins;
+  displayStringWait1s("GetActivePlugins...");
+  spi_api.GetActivePlugin(0, response);
+  active_plugins = "CH0: " + response;
+  spi_api.GetActivePlugin(1, response);
+  active_plugins += " CH1: " + response;
+  displayStringWait1s(active_plugins);
+
+  displayStringWait1s("SetActivePluginParam...");
+  spi_api.SetActivePluginParam(0, "enableEG", 0);
+  spi_api.SetActivePluginParam(1, "enableEG", 0);
+  for (int i=440; i<1000; i+=20){
+    spi_api.SetActivePluginParam(0, "frequency", i);
+    spi_api.SetActivePluginParam(1, "frequency", i*2);
+  }
+  displayStringWait1s("Save Preset...");
+  spi_api.SavePreset(0, "TestPreset0", 1);
+  spi_api.SavePreset(1, "TestPreset1", 2);
+  displayStringWait1s("Load Preset...");
+  spi_api.LoadPreset(0, 0);
+  spi_api.LoadPreset(1, 0);
+
+  displayStringWait1s("Get CH0 Plugin Param...");
+  spi_api.GetActivePluginParams(0, response);
+  displayStringWait1s(response);
+  displayStringWait1s("Get CH1 Plugin Param...");
+  spi_api.GetActivePluginParams(1, response);
+  displayStringWait1s(response);
+
+  displayStringWait1s("Get Presets CH0...");
+  spi_api.GetPresets(0, response);
+  displayStringWait1s(response);
+  displayStringWait1s("Get Presets CH1...");
+  spi_api.GetPresets(1, response);
+  displayStringWait1s(response);
+
+  displayStringWait1s("Get/Set Preset Data...");
   spi_api.GetPresetData("TBDeep", response);
-  displayString(response);
-  delay(1000);
+  displayStringWait1s(response);
   spi_api.SetPresetData("TBDeep", response);
   delay(1000);
+
+  displayStringWait1s("Get/Set Configuration...");
+  spi_api.GetConfiguration(response);
+  spi_api.SetConfiguration(response);
+  delay(1000);
+
+  displayStringWait1s("Get All Favorites...");
+  spi_api.GetAllFavorites(response);
+  displayString(response);
+  displayStringWait1s("Load Favorite 1...");
+  spi_api.LoadFavorite(1);
+  displayStringWait1s("Save Favorite 0...");
+  response = "{\"name\":\"Test123\",\"plug_0\":\"SineSrc\",\"pre_0\":0,\"plug_1\":\"SineSrc\",\"pre_1\":0,\"ustring\":\"Test1234\"}";
+  spi_api.SaveFavorite(0, response);
+  delay(1000);
+
+  displayStringWait1s("Get IO Caps...");
+  spi_api.GetIOCapabilities(response);
+  displayStringWait1s(response);
+
+  displayStringWait1s("Reboot P4...");
+  spi_api.Reboot();
+
 }
 
 void Ui::RunUITests(){

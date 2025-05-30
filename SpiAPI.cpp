@@ -7,7 +7,7 @@
 
 #include <SPI.h>
 // defines for spi0, RP2350 SPI stream to P4 for rest-api
-#define SPI_SPEED 20000000 // 30MHz seems to still work for receiving from p4, sending works up to 62.5MHz
+#define SPI_SPEED 30000000 // 30MHz seems to still work for receiving from p4, sending works up to 62.5MHz
 #define SPI_SCLK 34
 #define SPI_MOSI 35
 #define SPI_MISO 32
@@ -207,7 +207,9 @@ bool SpiAPI::SetPresetData(const std::string& pluginID, const std::string& data)
     uint8_t* param_name_field = string_param_3;
     memcpy(param_name_field, pluginID.c_str(), pluginID.length() + 1);
     send();
-    return transmitData(data, RequestType_t::SetPresetData); // send the favorite data
+    bool res = transmitData(data, RequestType_t::SetPresetData); // send the preset data
+    delay(1000); // wait for TBD to execute the command
+    return res;
 }
 
 bool SpiAPI::GetActivePluginParams(const uint8_t channel, std::string& response){
@@ -259,10 +261,13 @@ bool SpiAPI::GetAllFavorites(std::string& response){
     return receiveData(response, RequestType_t::GetAllFavorites);
 }
 
-bool SpiAPI::SaveFavorite(const std::string& favoriteData){
+bool SpiAPI::SaveFavorite(const uint8_t number, const std::string& favoriteData){
     *request_type = RequestType_t::SaveFavorite;
+    *uint8_param_0 = number; // channel number
     send();
-    return transmitData(favoriteData, RequestType_t::SaveFavorite); // send the favorite data
+    bool res = transmitData(favoriteData, RequestType_t::SaveFavorite); // send the favorite data
+    delay(2000); // wait for TBD to execute the command
+    return res;
 }
 
 bool SpiAPI::LoadFavorite(const int8_t favoriteID){
@@ -270,9 +275,16 @@ bool SpiAPI::LoadFavorite(const int8_t favoriteID){
     *request_type = RequestType_t::LoadFavorite; // request type
     *uint8_param_0 = favoriteID; // favorite ID
     send();
-    delay(1000); // wait for TBD to execute the command
+    delay(2000); // wait for TBD to execute the command
 
     return true;
+}
+
+bool SpiAPI::GetIOCapabilities(std::string& response){
+    response.clear();
+    *request_type = RequestType_t::GetIOCapabilities;
+    send();
+    return receiveData(response, RequestType_t::GetIOCapabilities);
 }
 
 bool SpiAPI::GetConfiguration(std::string& response){
@@ -287,7 +299,9 @@ bool SpiAPI::GetConfiguration(std::string& response){
 bool SpiAPI::SetConfiguration(const std::string& configData){
     *request_type = RequestType_t::SetConfiguration; // request type
     send();
-    return transmitData(configData, RequestType_t::SetConfiguration); // send the configuration data
+    bool res = transmitData(configData, RequestType_t::SetConfiguration);
+    delay(1000); // wait for TBD to execute the command
+    return res;
 }
 
 
@@ -298,4 +312,11 @@ bool SpiAPI::GetPlugins(std::string& response){
     send();
 
     return receiveData(response, RequestType_t::GetPlugins);
+}
+
+bool SpiAPI::Reboot(){
+    *request_type = RequestType_t::Reboot;
+    send();
+    delay(10000);
+    return true;
 }

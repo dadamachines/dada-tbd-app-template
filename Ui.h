@@ -48,6 +48,7 @@ class Ui {
     uint32_t ws_blink = 0; // word clock sync indicator
 
     void displayString(const std::string &s);
+    void displayStringWait1s(const std::string &s);
 public:
    void Init();
    void Update();

@@ -52,8 +52,9 @@ public:
     bool SavePreset(const uint8_t channel, const std::string &presetName, const int8_t presetID);
     bool GetAllFavorites(std::string& response);
     bool LoadFavorite(const int8_t favoriteID);
-    bool SaveFavorite(const std::string& favoriteData);
+    bool SaveFavorite(const uint8_t number, const std::string& favoriteData);
     bool GetConfiguration(std::string& response);
     bool SetConfiguration(const std::string& configData);
-
+    bool GetIOCapabilities(std::string& response);
+    bool Reboot();
 };
