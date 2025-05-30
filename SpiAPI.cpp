@@ -1,8 +1,13 @@
 #include "SpiAPI.h"
+// ***************/
+// Note that the delays are important for the TBD to have enough time to process the SPI requests.
+// The SPI bus is used to communicate with the P4 RP2350 for REST API requests and responses.
+// ***************/
+
 
 #include <SPI.h>
 // defines for spi0, RP2350 SPI stream to P4 for rest-api
-#define SPI_SPEED 30000000 // 30MHz seems to still work for receiving from p4, sending works up to 62.5MHz
+#define SPI_SPEED 20000000 // 30MHz seems to still work for receiving from p4, sending works up to 62.5MHz
 #define SPI_SCLK 34
 #define SPI_MOSI 35
 #define SPI_MISO 32
@@ -32,23 +37,45 @@ void SpiAPI::Init(){
     delay(100); // wait for the SPI bus to stabilize
 }
 
+void SpiAPI::transmitData(const std::string &data, const RequestType_t reqType){
+    uint32_t len = data.length();
+    const char* str = data.c_str();
+    // fields are: // 0xCA, 0xFE, request type, length (uint32_t), cstring
+    *request_type = reqType;
+    uint32_t *lengthField = (uint32_t*)(out_buf + 3);
+    uint32_t bytes_to_send = 0;
+    uint32_t bytes_sent = 0;
+    while (len > 0){
+        *lengthField = len;
+        *request_type = reqType;
+        bytes_to_send = len > 2048 - 7 ? 2048 - 7 : len; // 7 bytes for header
+        const char* ptr_cstring_section = str + bytes_sent;
+        memcpy(out_buf + 7, ptr_cstring_section, bytes_to_send);
+        len -= bytes_to_send;
+        bytes_sent += bytes_to_send;
+        SPI.beginTransaction(spiSettings);
+        SPI.transfer(out_buf, in_buf, 2048);
+        SPI.endTransaction();
+        delay(50);
+    }
+}
+
 bool SpiAPI::receiveData(std::string& response, const RequestType_t request){
     SPI.beginTransaction(spiSettings);
-    SPI.transferAsync(out_buf, in_buf, 2048);
-    while (!SPI.finishedAsync());
+    SPI.transfer(out_buf, in_buf, 2048);
     SPI.endTransaction();
-    delay(1);
+    delay(50);
 
     // fingerprint check
     if (in_buf[0] != 0xCA || in_buf[1] != 0xFE){
-        response = "FP wrong: " + std::to_string(in_buf[0]) + " " + std::to_string(in_buf[1]);
+        response = "FP0 wrong: " + std::to_string(in_buf[0]) + " " + std::to_string(in_buf[1]);
         return false;
     }
 
     // check request type acknowledgment
     const uint8_t requestType = in_buf[2];
     if (requestType != request){
-        response = "ACK wrong: " + std::to_string(requestType);
+        response = "ACK0 wrong: " + std::to_string(requestType);
         return false;
     }
 
@@ -62,21 +89,20 @@ bool SpiAPI::receiveData(std::string& response, const RequestType_t request){
 
     while (bytes_to_be_received > 0){
         SPI.beginTransaction(spiSettings);
-        SPI.transferAsync(out_buf, in_buf, 2048);
-        while (!SPI.finishedAsync());
+        SPI.transfer(out_buf, in_buf, 2048);
         SPI.endTransaction();
-        delay(1);
+        delay(50);
 
         // fingerprint check
         if (in_buf[0] != 0xCA || in_buf[1] != 0xFE){
-            response = "FP wrong: " + std::to_string(in_buf[0]) + " " + std::to_string(in_buf[1]);
+            response = "FP1 wrong: " + std::to_string(in_buf[0]) + " " + std::to_string(in_buf[1]);
             return false;
         }
 
         // check request type acknowledgment
         const uint8_t requestType = in_buf[2];
         if (requestType != request){
-            response = "ACK wrong: " + std::to_string(requestType);
+            response = "ACK1 wrong: " + std::to_string(requestType);
             return false;
         }
 
@@ -161,10 +187,19 @@ bool SpiAPI::SavePreset(const uint8_t channel, const std::string & presetName, c
 
 void SpiAPI::send(){
     SPI.beginTransaction(spiSettings);
-    SPI.transferAsync(out_buf, in_buf, 2048);
-    while (!SPI.finishedAsync());
+    SPI.transfer(out_buf, in_buf, 2048);
     SPI.endTransaction();
-    delay(1);
+    delay(100);
+}
+
+bool SpiAPI::SetPresetData(const std::string& pluginID, const std::string& data){
+    *request_type = RequestType_t::SetPresetData;
+    uint8_t* param_name_field = string_param_3;
+    memcpy(param_name_field, pluginID.c_str(), pluginID.length() + 1);
+    send();
+    transmitData(data, RequestType_t::SetPresetData); // send the favorite data
+
+    return true;
 }
 
 bool SpiAPI::GetActivePluginParams(const uint8_t channel, std::string& response){
@@ -216,6 +251,14 @@ bool SpiAPI::GetAllFavorites(std::string& response){
     return receiveData(response, RequestType_t::GetAllFavorites);
 }
 
+bool SpiAPI::SaveFavorite(const std::string& favoriteData){
+    *request_type = RequestType_t::SaveFavorite;
+    send();
+    transmitData(favoriteData, RequestType_t::SaveFavorite); // send the favorite data
+
+    return true;
+}
+
 bool SpiAPI::LoadFavorite(const int8_t favoriteID){
     // send LoadFavorite request
     *request_type = RequestType_t::LoadFavorite; // request type
@@ -234,6 +277,15 @@ bool SpiAPI::GetConfiguration(std::string& response){
 
     return receiveData(response, RequestType_t::GetConfiguration);
 }
+
+bool SpiAPI::SetConfiguration(const std::string& configData){
+    *request_type = RequestType_t::SetConfiguration; // request type
+    send();
+    transmitData(configData, RequestType_t::SetConfiguration); // send the configuration data
+
+    return true;
+}
+
 
 bool SpiAPI::GetPlugins(std::string& response){
     // send GetPlugins request

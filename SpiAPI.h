@@ -30,8 +30,8 @@ typedef enum{
 
 class SpiAPI{
     bool receiveData(std::string& response, RequestType_t requestType);
+    void transmitData(const std::string &data, const RequestType_t reqType);
     void send();
-    void sendNoDelay();
 
 public:
     void Init();
@@ -47,10 +47,13 @@ public:
     bool SetActivePluginTrig(const uint8_t channel, const std::string& paramName, const int32_t value);
     bool GetPresets(const uint8_t channel, std::string& response);
     bool GetPresetData(const std::string& pluginID, std::string& response);
+    bool SetPresetData(const std::string& pluginID, const std::string& data);
     bool LoadPreset(const uint8_t channel, const int8_t presetID);
     bool SavePreset(const uint8_t channel, const std::string &presetName, const int8_t presetID);
     bool GetAllFavorites(std::string& response);
     bool LoadFavorite(const int8_t favoriteID);
+    bool SaveFavorite(const std::string& favoriteData);
     bool GetConfiguration(std::string& response);
+    bool SetConfiguration(const std::string& configData);
 
 };

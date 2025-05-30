@@ -2,8 +2,7 @@
 #include "SpiAPI.h"
 
 SpiAPI spi_api;
-#include <string>
-std::string PluginsJSON;
+
 
 void Ui::Init(){
     // SPI API init
@@ -29,6 +28,16 @@ void Ui::Init(){
     strip.begin(); // INITIALIZE NeoPixel strip object (REQUIRED)
     strip.show(); // Turn OFF all pixels ASAP
     strip.setBrightness(10);
+
+}
+
+void Ui::displayString(const std::string &s){
+    display->clearDisplay();
+    display->setTextSize(1);
+    display->setTextColor(SH110X_WHITE);
+    display->setCursor(0, 0);
+    display->printf("%s\n", s.c_str());
+    display->display();
 }
 
 void Ui::WSSync(){
@@ -36,23 +45,29 @@ void Ui::WSSync(){
 }
 
 void Ui::Update(){
-    std::string response;
-    spi_api.LoadPreset(0, 0); // load preset for channel 0, preset 0
-
-
-    display->clearDisplay();
-    display->setTextSize(1);
-    display->setTextColor(SH110X_WHITE);
-    display->setCursor(0, 0);
-    display->printf("%s\n", response.c_str());
-
-    display->display();
-
-    delay(1000);
+  RunSpiAPITests();
 }
 
-/*
-void Ui::Update(){
+void Ui::RunSpiAPITests(){
+  std::string response;
+  spi_api.GetConfiguration(response);
+  displayString(response);
+  delay(1000);
+  spi_api.SetConfiguration(response);
+  delay(1000);
+  spi_api.GetAllFavorites(response);
+  displayString(response);
+  delay(1000);
+  spi_api.SaveFavorite(response);
+  delay(1000);
+  spi_api.GetPresetData("TBDeep", response);
+  displayString(response);
+  delay(1000);
+  spi_api.SetPresetData("TBDeep", response);
+  delay(1000);
+}
+
+void Ui::RunUITests(){
   static unsigned long tick = 0;
   unsigned long delta = millis() - tick;
   tick = millis();
@@ -173,4 +188,3 @@ void Ui::Update(){
   display->display();
   strip.show();
 }
-*/

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <atomic>
+#include <string>
 // defines for the CTAG TBD UI board with STM
 #include <Wire.h>
 #define I2C_SLAVE_ADDR 0x42
@@ -45,8 +46,12 @@ class Ui {
     const uint8_t rgb_led_fbtn_map[3] = {19, 17, 18};
     const uint8_t rgb_led_mcl = 20;
     uint32_t ws_blink = 0; // word clock sync indicator
+
+    void displayString(const std::string &s);
 public:
    void Init();
    void Update();
    void WSSync();
+   void RunUITests();
+   void RunSpiAPITests();
 };
