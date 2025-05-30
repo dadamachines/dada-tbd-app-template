@@ -37,6 +37,7 @@ class Ui {
         uint32_t systicks; // timestamp
     } ui_data_t;
     ui_data_t ui_data;
+    uint32_t current_ui_data = 0; // current ui data index
     SoftwareSPI *softSPI;
     Adafruit_SH1106G *display;
     Adafruit_NeoPixel strip = Adafruit_NeoPixel(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
@@ -49,6 +50,7 @@ class Ui {
 
     void displayString(const std::string &s);
     void displayStringWait1s(const std::string &s);
+    void updateUIInputs();
 public:
    void Init();
    void Update();

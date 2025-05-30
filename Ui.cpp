@@ -55,7 +55,8 @@ void Ui::WSSync(){
 }
 
 void Ui::Update(){
-  RunSpiAPITests();
+  //RunSpiAPITests();
+  RunUITests();
 }
 
 void Ui::RunSpiAPITests(){
@@ -134,14 +135,22 @@ void Ui::RunSpiAPITests(){
 
 }
 
+void Ui::updateUIInputs(){
+  // get data from stm
+  while(!Wire1.finishedAsync());
+  Wire1.readAsync(I2C_SLAVE_ADDR, &ui_data, sizeof(ui_data_t), true);
+}
+
+
 void Ui::RunUITests(){
   static unsigned long tick = 0;
   unsigned long delta = millis() - tick;
   tick = millis();
   static uint32_t bpm = 0;
-  // get data from stm
-  Wire1.readAsync(I2C_SLAVE_ADDR, &ui_data, sizeof(ui_data_t), true);
-  while(!Wire1.finishedAsync()) delay(1);
+
+  updateUIInputs();
+
+
   char buf[64];
 
   // ws indicator
