@@ -30,7 +30,7 @@ typedef enum{
 
 class SpiAPI{
     bool receiveData(std::string& response, RequestType_t requestType);
-    void transmitData(const std::string &data, const RequestType_t reqType);
+    bool transmitData(const std::string &data, const RequestType_t reqType);
     void send();
 
 public:

@@ -37,7 +37,7 @@ void SpiAPI::Init(){
     delay(100); // wait for the SPI bus to stabilize
 }
 
-void SpiAPI::transmitData(const std::string &data, const RequestType_t reqType){
+bool SpiAPI::transmitData(const std::string &data, const RequestType_t reqType){
     uint32_t len = data.length();
     const char* str = data.c_str();
     // fields are: // 0xCA, 0xFE, request type, length (uint32_t), cstring
@@ -56,8 +56,18 @@ void SpiAPI::transmitData(const std::string &data, const RequestType_t reqType){
         SPI.beginTransaction(spiSettings);
         SPI.transfer(out_buf, in_buf, 2048);
         SPI.endTransaction();
+        // fingerprint check
+        if (in_buf[0] != 0xCA || in_buf[1] != 0xFE){
+            return false;
+        }
+        // check request type acknowledgment
+        const uint8_t requestType = in_buf[2];
+        if (requestType != reqType){
+            return false;
+        }
         delay(50);
     }
+    return true;
 }
 
 bool SpiAPI::receiveData(std::string& response, const RequestType_t request){
@@ -197,9 +207,7 @@ bool SpiAPI::SetPresetData(const std::string& pluginID, const std::string& data)
     uint8_t* param_name_field = string_param_3;
     memcpy(param_name_field, pluginID.c_str(), pluginID.length() + 1);
     send();
-    transmitData(data, RequestType_t::SetPresetData); // send the favorite data
-
-    return true;
+    return transmitData(data, RequestType_t::SetPresetData); // send the favorite data
 }
 
 bool SpiAPI::GetActivePluginParams(const uint8_t channel, std::string& response){
@@ -254,9 +262,7 @@ bool SpiAPI::GetAllFavorites(std::string& response){
 bool SpiAPI::SaveFavorite(const std::string& favoriteData){
     *request_type = RequestType_t::SaveFavorite;
     send();
-    transmitData(favoriteData, RequestType_t::SaveFavorite); // send the favorite data
-
-    return true;
+    return transmitData(favoriteData, RequestType_t::SaveFavorite); // send the favorite data
 }
 
 bool SpiAPI::LoadFavorite(const int8_t favoriteID){
@@ -281,9 +287,7 @@ bool SpiAPI::GetConfiguration(std::string& response){
 bool SpiAPI::SetConfiguration(const std::string& configData){
     *request_type = RequestType_t::SetConfiguration; // request type
     send();
-    transmitData(configData, RequestType_t::SetConfiguration); // send the configuration data
-
-    return true;
+    return transmitData(configData, RequestType_t::SetConfiguration); // send the configuration data
 }
 
 
