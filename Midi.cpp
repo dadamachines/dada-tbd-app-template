@@ -163,6 +163,10 @@ void Midi::Update(){
             // update the LED status from the SPI transfer
             uint32_t *led = (uint32_t *) &spi_trans[current_trans].in_buf[2];
             ledStatus = *led; // update led status from SPI transfer
+            // see if we have USB device midi data from p4?
+            uint32_t *midi_len = (uint32_t*) &spi_trans[current_trans].in_buf[6];
+            uint8_t *midi_data = (uint8_t*) &spi_trans[current_trans].in_buf[10];
+            midiparser.QueueData(midi_data, *midi_len);
         }
         midiparser.Update(spi_trans[current_trans].out_buf + 2); // skip fingerprint bytes
         // if we have a word clock sync, then we can update the MIDI parser
