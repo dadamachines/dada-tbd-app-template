@@ -47,6 +47,7 @@ class Ui {
     const uint8_t rgb_led_fbtn_map[3] = {19, 17, 18};
     const uint8_t rgb_led_mcl = 20;
     uint32_t ws_blink = 0; // word clock sync indicator
+    uint32_t ledStatus = 0;
 
     void displayString(const std::string &s);
     void displayStringWait1s(const std::string &s);
@@ -57,4 +58,7 @@ public:
    void WSSync();
    void RunUITests();
    void RunSpiAPITests();
+   void SetLedStatus(uint32_t led){
+       ledStatus = led;
+   }
 };

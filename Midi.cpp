@@ -7,7 +7,7 @@ MidiParser midiparser; // MIDI handling
 #define USBA_SEL_GPIO 11
 
 #include <SPI.h>
-#define SPI1_SPEED 62500000 // 62.5 MHz
+#define SPI1_SPEED 30000000 // 62.5 MHz
 #define SPI1_SCLK 30
 #define SPI1_MOSI 31
 #define SPI1_MISO 28
@@ -158,6 +158,12 @@ void Midi::Update(){
         SPI1.transferAsync(spi_trans[current_trans].out_buf, spi_trans[current_trans].in_buf, SPI_BUFFER_LEN);
         // swap buffers
         current_trans ^= 0x1;
+        if (spi_trans[current_trans].in_buf[0] == 0xCA && spi_trans[current_trans].in_buf[1] == 0xFE){
+            // fingerprint matches, we have a valid transfer
+            // update the LED status from the SPI transfer
+            uint32_t *led = (uint32_t *) &spi_trans[current_trans].in_buf[2];
+            ledStatus = *led; // update led status from SPI transfer
+        }
         midiparser.Update(spi_trans[current_trans].out_buf + 2); // skip fingerprint bytes
         // if we have a word clock sync, then we can update the MIDI parser
         ws_sync_counter = 0; // reset the counter

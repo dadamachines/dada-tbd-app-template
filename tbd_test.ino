@@ -20,5 +20,6 @@ void loop(){
 }
 
 void loop1(){
+    ui.SetLedStatus(midi.GetLedStatus());
     ui.Update(); // Update UI handling
 }

@@ -193,13 +193,14 @@ void Ui::RunUITests(){
   display->printf("%s\n", buf);
 
   // print fbuttons
+  /*
   if (ui_data.f_btns & (1 << 4))
     strip.setPixelColor(rgb_led_fbtn_map[0], strip.Color(0, 255, 0));
   else
     strip.setPixelColor(rgb_led_fbtn_map[0], strip.Color(64, 64, 64));
   if (ui_data.f_btns_long_press & (1 << 4))
     strip.setPixelColor(rgb_led_fbtn_map[0], strip.Color(255, 0, 0));
-
+  */
   if (ui_data.f_btns & (1 << 2))
     strip.setPixelColor(rgb_led_fbtn_map[1], strip.Color(0, 255, 0));
   else
@@ -214,6 +215,11 @@ void Ui::RunUITests(){
   if (ui_data.f_btns_long_press & (1 << 0))
     strip.setPixelColor(rgb_led_fbtn_map[2], strip.Color(255, 0, 0));
 
+  uint8_t b = ledStatus & 0xff;
+  uint8_t g = (ledStatus >> 8) & 0xff;
+  uint8_t r = (ledStatus >> 16) & 0xff;
+  strip.setPixelColor(rgb_led_fbtn_map[0], strip.Color(r, g, b));
+  //display->printf("%d\n", ledStatus);
 
   for(int i=0;i<5;i++){
     if(ui_data.f_btns & (1 << i)){
