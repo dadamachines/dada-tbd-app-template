@@ -3,8 +3,15 @@
 
 SpiAPI spi_api;
 
+#define STM32RESET_PIN 40
 
 void Ui::Init(){
+    // reset stm
+    pinMode(STM32RESET_PIN, OUTPUT);
+    digitalWrite(STM32RESET_PIN, false);
+    delay(10);
+  digitalWrite(STM32RESET_PIN, true);
+
     // SPI API init
     spi_api.Init();
 
@@ -20,7 +27,7 @@ void Ui::Init(){
     softSPI = new SoftwareSPI(OLED_SCLK, OLED_DC, OLED_MOSI);
     display = new Adafruit_SH1106G(128, 64, softSPI, OLED_DC, OLED_RST, OLED_CS);
     display->begin(0, true);
-    display->setRotation(2);
+    display->setRotation(0);
     display->clearDisplay();
     display->display();
 
@@ -148,8 +155,9 @@ void Ui::RunUITests(){
   tick = millis();
   static uint32_t bpm = 0;
 
+  ui_data_t ui_data_current = ui_data; // copy current ui data
+  // start background DMA ui_data update
   updateUIInputs();
-
 
   char buf[64];
 
@@ -166,25 +174,25 @@ void Ui::RunUITests(){
   display->setTextSize(1);
   display->setTextColor(SH110X_WHITE);
   display->setCursor(0, 0);
-  display->printf("%04d %04d %04d %04d\n", ui_data.pot_positions[0], ui_data.pot_positions[1], ui_data.pot_positions[2], ui_data.pot_positions[3]);
+  display->printf("%04d %04d %04d %04d\n", ui_data_current.pot_positions[0], ui_data_current.pot_positions[1], ui_data_current.pot_positions[2], ui_data_current.pot_positions[3]);
 
   for(int i=0, j=0;i<4;i++){
-    if(ui_data.pot_states[i] & (1 << 0)) buf[j++] = '1'; else buf[j++] = '0';
-    if(ui_data.pot_states[i] & (1 << 1)) buf[j++] = '1'; else buf[j++] = '0';
+    if(ui_data_current.pot_states[i] & (1 << 0)) buf[j++] = '1'; else buf[j++] = '0';
+    if(ui_data_current.pot_states[i] & (1 << 1)) buf[j++] = '1'; else buf[j++] = '0';
   }
   buf[8] = 0;
   display->printf("%s\n", buf);
 
   // print dbuttons
   for(int i=0;i<16;i++){
-    if(ui_data.d_btns & (1 << i)){
+    if(ui_data_current.d_btns & (1 << i)){
       buf[i] = '1';
       strip.setPixelColor(rgb_led_btn_map[i], strip.Color(0, 255, 0));
     }else{
       buf[i] = '0';
       strip.setPixelColor(rgb_led_btn_map[i], strip.Color(64, 64, 64));
     }
-    if(ui_data.d_btns_long_press & (1 << i)){
+    if(ui_data_current.d_btns_long_press & (1 << i)){
       buf[i] = 'L';
       strip.setPixelColor(rgb_led_btn_map[i], strip.Color(255, 0, 0));
     }
@@ -194,25 +202,25 @@ void Ui::RunUITests(){
 
   // print fbuttons
   /*
-  if (ui_data.f_btns & (1 << 4))
+  if (ui_data_current.f_btns & (1 << 4))
     strip.setPixelColor(rgb_led_fbtn_map[0], strip.Color(0, 255, 0));
   else
     strip.setPixelColor(rgb_led_fbtn_map[0], strip.Color(64, 64, 64));
-  if (ui_data.f_btns_long_press & (1 << 4))
+  if (ui_data_current.f_btns_long_press & (1 << 4))
     strip.setPixelColor(rgb_led_fbtn_map[0], strip.Color(255, 0, 0));
   */
-  if (ui_data.f_btns & (1 << 2))
+  if (ui_data_current.f_btns & (1 << 2))
     strip.setPixelColor(rgb_led_fbtn_map[1], strip.Color(0, 255, 0));
   else
     strip.setPixelColor(rgb_led_fbtn_map[1], strip.Color(64, 64, 64));
-  if (ui_data.f_btns_long_press & (1 << 2))
+  if (ui_data_current.f_btns_long_press & (1 << 2))
     strip.setPixelColor(rgb_led_fbtn_map[1], strip.Color(255, 0, 0));
 
-  if (ui_data.f_btns & (1 << 0))
+  if (ui_data_current.f_btns & (1 << 0))
     strip.setPixelColor(rgb_led_fbtn_map[2], strip.Color(0, 255, 0));
   else
     strip.setPixelColor(rgb_led_fbtn_map[2], strip.Color(64, 64, 64));
-  if (ui_data.f_btns_long_press & (1 << 0))
+  if (ui_data_current.f_btns_long_press & (1 << 0))
     strip.setPixelColor(rgb_led_fbtn_map[2], strip.Color(255, 0, 0));
 
   uint8_t b = ledStatus & 0xff;
@@ -222,13 +230,13 @@ void Ui::RunUITests(){
   //display->printf("%d\n", ledStatus);
 
   for(int i=0;i<5;i++){
-    if(ui_data.f_btns & (1 << i)){
+    if(ui_data_current.f_btns & (1 << i)){
       buf[i] = '1';
     }
     else{
       buf[i] = '0';
     }
-    if(ui_data.f_btns_long_press & (1 << i)){
+    if(ui_data_current.f_btns_long_press & (1 << i)){
       buf[i] = 'L';
     }
   }
@@ -236,21 +244,21 @@ void Ui::RunUITests(){
   display->printf("%s\n", buf);
 
   // print mcl buttons
-  if (ui_data.mcl_btns & (1 << 1))
+  if (ui_data_current.mcl_btns & (1 << 1))
     strip.setPixelColor(rgb_led_mcl, strip.Color(0, 255, 0));
   else
     strip.setPixelColor(rgb_led_mcl, strip.Color(64, 64, 64));
-  if (ui_data.mcl_btns_long_press & (1 << 1))
+  if (ui_data_current.mcl_btns_long_press & (1 << 1))
     strip.setPixelColor(rgb_led_mcl, strip.Color(255, 0, 0));
 
   for(int i=0;i<13;i++){
-    if(ui_data.mcl_btns & (1 << i)){
+    if(ui_data_current.mcl_btns & (1 << i)){
       buf[i] = '1';
     }
     else{
       buf[i] = '0';
     }
-    if(ui_data.mcl_btns_long_press & (1 << i)){
+    if(ui_data_current.mcl_btns_long_press & (1 << i)){
       buf[i] = 'L';
     }
   }

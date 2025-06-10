@@ -145,6 +145,14 @@ void Midi::Init(){
     pinMode(USBA_SEL_GPIO, OUTPUT);
     digitalWrite(USBA_PWR_ENA_GPIO, true); // enable USB power
     digitalWrite(USBA_SEL_GPIO, true); // select USB A port
+
+    // UARTS
+    Serial1.setTX(44); // set TX pin for first UART
+    Serial1.setRX(45); // set RX pin for first UART
+    Serial1.begin(31250); // MIDI baud rate
+    Serial2.setTX(36); // set TX pin for second UART
+    Serial2.setRX(37); // set RX pin for second UART
+    Serial2.begin(31250); // MIDI baud rate for second UART
 }
 
 void Midi::Update(){
@@ -158,6 +166,7 @@ void Midi::Update(){
         SPI1.transferAsync(spi_trans[current_trans].out_buf, spi_trans[current_trans].in_buf, SPI_BUFFER_LEN);
         // swap buffers
         current_trans ^= 0x1;
+        // get forwarded data from p4 usb device in, send through regular spi transaction
         if (spi_trans[current_trans].in_buf[0] == 0xCA && spi_trans[current_trans].in_buf[1] == 0xFE){
             // fingerprint matches, we have a valid transfer
             // update the LED status from the SPI transfer
@@ -167,7 +176,40 @@ void Midi::Update(){
             uint32_t *midi_len = (uint32_t*) &spi_trans[current_trans].in_buf[6];
             uint8_t *midi_data = (uint8_t*) &spi_trans[current_trans].in_buf[10];
             midiparser.QueueData(midi_data, *midi_len);
+            // forward to UARTS
+            if (*midi_len > 0){
+                Serial1.write(midi_data, *midi_len);
+                Serial2.write(midi_data, *midi_len);
+            }
         }
+        // get data from UARTS
+        uint8_t midi_uart_buf[32];
+        uint8_t *midi_buf_ptr = midi_uart_buf;
+        uint32_t uart_read = 0;
+        while (Serial1.available() > 0 && uart_read < sizeof(midi_uart_buf)){
+            *midi_buf_ptr++ = Serial1.read();
+            uart_read++;
+        }
+        if (uart_read > 0){
+            midiparser.QueueData(midi_uart_buf, uart_read);
+        }
+        midi_buf_ptr = midi_uart_buf;
+        uart_read = 0; // reset uart read count
+        while (Serial2.available() > 0 && uart_read < sizeof(midi_uart_buf)){
+            *midi_buf_ptr++ = Serial2.read();
+            uart_read++;
+        }
+        if (uart_read > 0){
+            midiparser.QueueData(midi_uart_buf, uart_read);
+        }
+        /*
+        Serial1.write(0x90);
+        Serial1.write(0x45); // send a note on message to indicate that we are processing MIDI data
+        Serial1.write(0x7F); // velocity
+        Serial2.write(0x91);
+        Serial2.write(0x45); // send a note on message to indicate that we are processing MIDI data
+        Serial2.write(0x7F); // velocity
+        */
         midiparser.Update(spi_trans[current_trans].out_buf + 2); // skip fingerprint bytes
         // if we have a word clock sync, then we can update the MIDI parser
         ws_sync_counter = 0; // reset the counter
