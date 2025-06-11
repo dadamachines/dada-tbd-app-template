@@ -7,7 +7,7 @@ MidiParser midiparser; // MIDI handling
 #define USBA_SEL_GPIO 11
 
 #include <SPI.h>
-#define SPI1_SPEED 30000000 // 62.5 MHz
+#define SPI1_SPEED 20000000 // 62.5 MHz rp2350-> p4, 30MHz p4->rp2350 empirical max.
 #define SPI1_SCLK 30
 #define SPI1_MOSI 31
 #define SPI1_MISO 28
@@ -136,7 +136,7 @@ void Midi::Init(){
     SPI1.begin(true); // hw CS assertion
 
     // WS sync to codec
-    pinMode(WS_PIN, INPUT); // Configure button pin with pull-up resistor
+    pinMode(WS_PIN, INPUT_PULLDOWN); // Configure button pin with pull-up resistor
     pinMode(LED_GREEN, OUTPUT);
     attachInterrupt(digitalPinToInterrupt(WS_PIN), ws_sync_cb, FALLING);
 
@@ -153,13 +153,33 @@ void Midi::Init(){
     Serial2.setTX(36); // set TX pin for second UART
     Serial2.setRX(37); // set RX pin for second UART
     Serial2.begin(31250); // MIDI baud rate for second UART
+
+    // reset sync counter
+    ws_sync_counter = 0;
+    p4Alive = false;
+    while (ws_sync_counter < 100) delay(10); // wait for p4 codec to come alive
+    p4Alive = true;
 }
 
 void Midi::Update(){
+    // check if p4 is still alive
+    static unsigned long time {0};
+    unsigned long elapsed = millis() - time;
+    if (elapsed > 100 && ws_sync_counter == 0){
+        // if we have not received a sync signal for 100ms, then we assume that the P4 is not alive
+        p4Alive = false;
+    } else {
+        p4Alive = true; // P4 is alive
+    }
+
     // update midi host
-    USBHost.task();
     bool connected = midi_dev_addr != 0 && tuh_midi_configured(midi_dev_addr);
+    USBHost.task();
+
+    // prepare real-time SPI transfer
     if (ws_sync_counter > 0){
+        // get time of last ws sync to detect if p4 is alive
+        time = millis();
         // is 44100Hz / 32 = 1378,125Hz or 725,62us
         if (SPI1.finishedAsync()) SPI1.endTransaction();
         SPI1.beginTransaction(spiSettings);
@@ -210,8 +230,9 @@ void Midi::Update(){
         Serial2.write(0x45); // send a note on message to indicate that we are processing MIDI data
         Serial2.write(0x7F); // velocity
         */
+        // if we have a word clock sync /32 = one block size, then we can update the MIDI parser
         midiparser.Update(spi_trans[current_trans].out_buf + 2); // skip fingerprint bytes
-        // if we have a word clock sync, then we can update the MIDI parser
+
         ws_sync_counter = 0; // reset the counter
     }
 }

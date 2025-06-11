@@ -46,8 +46,9 @@ class Ui {
     const uint8_t rgb_led_btn_map[16] = {8, 7, 6, 5, 4, 3, 2, 1, 9, 10, 11, 12, 13, 14, 15, 16};
     const uint8_t rgb_led_fbtn_map[3] = {19, 17, 18};
     const uint8_t rgb_led_mcl = 20;
-    uint32_t ws_blink = 0; // word clock sync indicator
     uint32_t ledStatus = 0;
+    bool p4Ready {false}; // P4 ready indicator
+    bool resetRequested {false}; // reset request indicator
 
     void displayString(const std::string &s);
     void displayStringWait1s(const std::string &s);
@@ -55,10 +56,12 @@ class Ui {
 public:
    void Init();
    void Update();
-   void WSSync();
    void RunUITests();
    void RunSpiAPITests();
    void SetLedStatus(uint32_t led){
        ledStatus = led;
    }
+    void SetP4Ready(bool ready){
+        p4Ready = ready;
+    }
 };

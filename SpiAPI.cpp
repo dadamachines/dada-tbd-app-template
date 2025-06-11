@@ -7,7 +7,7 @@
 
 #include <SPI.h>
 // defines for spi0, RP2350 SPI stream to P4 for rest-api
-#define SPI_SPEED 30000000 // 30MHz seems to still work for receiving from p4, sending works up to 62.5MHz
+#define SPI_SPEED 20000000 // 30MHz seems to still work for receiving from p4, sending works up to 62.5MHz
 #define SPI_SCLK 34
 #define SPI_MOSI 35
 #define SPI_MISO 32

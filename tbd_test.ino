@@ -21,5 +21,6 @@ void loop(){
 
 void loop1(){
     ui.SetLedStatus(midi.GetLedStatus());
+    ui.SetP4Ready(midi.GetP4AliveStatus());
     ui.Update(); // Update UI handling
 }

@@ -1,5 +1,6 @@
 #include "Ui.h"
 #include "SpiAPI.h"
+#include "DadaLogo.h"
 
 SpiAPI spi_api;
 
@@ -10,7 +11,7 @@ void Ui::Init(){
     pinMode(STM32RESET_PIN, OUTPUT);
     digitalWrite(STM32RESET_PIN, false);
     delay(10);
-  digitalWrite(STM32RESET_PIN, true);
+    digitalWrite(STM32RESET_PIN, true);
 
     // SPI API init
     spi_api.Init();
@@ -25,7 +26,7 @@ void Ui::Init(){
     // display init
     // TODO: Adafruit_SH1106G.cpp in Adafruit library, change l. 139, 140 _page_start_offset = 0 to avoid display line offset!
     softSPI = new SoftwareSPI(OLED_SCLK, OLED_DC, OLED_MOSI);
-    display = new Adafruit_SH1106G(128, 64, softSPI, OLED_DC, OLED_RST, OLED_CS);
+    display = new Adafruit_SH1106G(128, 64, softSPI, OLED_DC, OLED_RST, OLED_CS, 8000000);
     display->begin(0, true);
     display->setRotation(0);
     display->clearDisplay();
@@ -57,11 +58,30 @@ void Ui::displayStringWait1s(const std::string &s){
   delay(1000);
 }
 
-void Ui::WSSync(){
-    ws_blink = 1; // set blink flag
-}
-
 void Ui::Update(){
+  static unsigned long lastTime = 0;
+  unsigned long currentTime = millis();
+  if (currentTime - lastTime < 10) return; // update every 10ms
+  lastTime = currentTime;
+  if (!p4Ready){
+    //displayString("Waiting for P4...");
+    display->clearDisplay();
+    display->drawBitmap(0, 0, dada_bitmapx, 128, 64, SH110X_WHITE);
+    display->display();
+    // assert reset for stm32
+    digitalWrite(STM32RESET_PIN, false);
+    resetRequested = true;
+    delay(100);
+    return;
+  }
+  // de-assert stm reset
+  if (resetRequested){
+    resetRequested = false;
+    digitalWrite(STM32RESET_PIN, true);
+    delay(1000);
+  }
+
+
   //RunSpiAPITests();
   RunUITests();
 }
@@ -160,14 +180,6 @@ void Ui::RunUITests(){
   updateUIInputs();
 
   char buf[64];
-
-  // ws indicator
-  if(ws_blink){
-    strip.setPixelColor(rgb_led_rp2350, strip.Color(255, 255, 255));
-    ws_blink = 0;
-  }else{
-    strip.setPixelColor(rgb_led_rp2350, strip.Color(0, 0, 0));
-  }
 
   // print pots
   display->clearDisplay();
