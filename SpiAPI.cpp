@@ -7,7 +7,7 @@
 
 #include <SPI.h>
 // defines for spi0, RP2350 SPI stream to P4 for rest-api
-#define SPI_SPEED 20000000 // 30MHz seems to still work for receiving from p4, sending works up to 62.5MHz
+#define SPI_SPEED 30000000 // 30MHz seems to still work for receiving from p4, sending works up to 62.5MHz
 #define SPI_SCLK 34
 #define SPI_MOSI 35
 #define SPI_MISO 32
@@ -30,7 +30,6 @@ void SpiAPI::Init(){
     SPI.setMOSI(SPI_MOSI);
     SPI.setCS(SPI_CS);
     SPI.setSCK(SPI_SCLK);
-    SPI.begin(true); // hw CS assertion
 
     out_buf[0] = 0xCA;
     out_buf[1] = 0xFE; // fingerprint
@@ -53,9 +52,11 @@ bool SpiAPI::transmitData(const std::string &data, const RequestType_t reqType){
         memcpy(out_buf + 7, ptr_cstring_section, bytes_to_send);
         len -= bytes_to_send;
         bytes_sent += bytes_to_send;
+        SPI.begin(true); // hw CS assertion
         SPI.beginTransaction(spiSettings);
         SPI.transfer(out_buf, in_buf, 2048);
         SPI.endTransaction();
+        SPI.end();
         // fingerprint check
         if (in_buf[0] != 0xCA || in_buf[1] != 0xFE){
             return false;
@@ -71,9 +72,11 @@ bool SpiAPI::transmitData(const std::string &data, const RequestType_t reqType){
 }
 
 bool SpiAPI::receiveData(std::string& response, const RequestType_t request){
+    SPI.begin(true);
     SPI.beginTransaction(spiSettings);
     SPI.transfer(out_buf, in_buf, 2048);
     SPI.endTransaction();
+    SPI.end();
     delay(50);
 
     // fingerprint check
@@ -98,9 +101,11 @@ bool SpiAPI::receiveData(std::string& response, const RequestType_t request){
     response.append((char*)&in_buf[7], bytes_received); // skip the first 7 bytes (fingerprint and length)
 
     while (bytes_to_be_received > 0){
+        SPI.begin(true);
         SPI.beginTransaction(spiSettings);
         SPI.transfer(out_buf, in_buf, 2048);
         SPI.endTransaction();
+        SPI.end();
         delay(50);
 
         // fingerprint check
@@ -196,9 +201,11 @@ bool SpiAPI::SavePreset(const uint8_t channel, const std::string & presetName, c
 
 
 void SpiAPI::send(){
+    SPI.begin(true);
     SPI.beginTransaction(spiSettings);
     SPI.transfer(out_buf, in_buf, 2048);
     SPI.endTransaction();
+    SPI.end();
     delay(100);
 }
 

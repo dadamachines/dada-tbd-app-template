@@ -7,7 +7,7 @@ MidiParser midiparser; // MIDI handling
 #define USBA_SEL_GPIO 11
 
 #include <SPI.h>
-#define SPI1_SPEED 20000000 // 62.5 MHz rp2350-> p4, 30MHz p4->rp2350 empirical max.
+#define SPI1_SPEED 30000000 // 62.5 MHz rp2350-> p4, 30MHz p4->rp2350 empirical max.
 #define SPI1_SCLK 30
 #define SPI1_MOSI 31
 #define SPI1_MISO 28
@@ -115,30 +115,23 @@ void tuh_midi_rx_cb(uint8_t dev_addr, uint32_t num_packets){
 }
 
 void Midi::Init(){
+    // WS sync to codec
+    pinMode(WS_PIN, INPUT_PULLDOWN); // Configure button pin with pull-up resistor
+    pinMode(LED_GREEN, OUTPUT);
+    attachInterrupt(digitalPinToInterrupt(WS_PIN), ws_sync_cb, FALLING);
+
+    // reset sync counter
+    ws_sync_counter = 0;
+    p4Alive = false;
+    while (ws_sync_counter < 100) delay(10); // wait for p4 codec to come alive
+    p4Alive = true;
+
     midiparser.Init(); // Initialize MIDI handling
 
     // Optionally, configure the buffer sizes here
     // The commented out code shows the default values
     // tuh_midih_define_limits(64, 64, 16);
     USBHost.begin(0); // 0 means use native RP2040 host
-
-    // SPI data init
-    spi_trans[0].out_buf[0] = 0xCA; // fingerprint
-    spi_trans[0].out_buf[1] = 0xFE; // fingerprint
-    spi_trans[1].out_buf[0] = 0xCA; // fingerprint
-    spi_trans[1].out_buf[1] = 0xFE; // fingerprint
-    current_trans = 0;
-
-    SPI1.setMISO(SPI1_MISO);
-    SPI1.setMOSI(SPI1_MOSI);
-    SPI1.setCS(SPI1_CS);
-    SPI1.setSCK(SPI1_SCLK);
-    SPI1.begin(true); // hw CS assertion
-
-    // WS sync to codec
-    pinMode(WS_PIN, INPUT_PULLDOWN); // Configure button pin with pull-up resistor
-    pinMode(LED_GREEN, OUTPUT);
-    attachInterrupt(digitalPinToInterrupt(WS_PIN), ws_sync_cb, FALLING);
 
     // USB Host init
     pinMode(USBA_PWR_ENA_GPIO, OUTPUT);
@@ -154,11 +147,19 @@ void Midi::Init(){
     Serial2.setRX(37); // set RX pin for second UART
     Serial2.begin(31250); // MIDI baud rate for second UART
 
-    // reset sync counter
-    ws_sync_counter = 0;
-    p4Alive = false;
-    while (ws_sync_counter < 100) delay(10); // wait for p4 codec to come alive
-    p4Alive = true;
+
+    // SPI data init
+    spi_trans[0].out_buf[0] = 0xCA; // fingerprint
+    spi_trans[0].out_buf[1] = 0xFE; // fingerprint
+    spi_trans[1].out_buf[0] = 0xCA; // fingerprint
+    spi_trans[1].out_buf[1] = 0xFE; // fingerprint
+    current_trans = 0;
+
+    // real-time SPI uplink to P4
+    SPI1.setMISO(SPI1_MISO);
+    SPI1.setMOSI(SPI1_MOSI);
+    SPI1.setCS(SPI1_CS);
+    SPI1.setSCK(SPI1_SCLK);
 }
 
 void Midi::Update(){
@@ -181,7 +182,11 @@ void Midi::Update(){
         // get time of last ws sync to detect if p4 is alive
         time = millis();
         // is 44100Hz / 32 = 1378,125Hz or 725,62us
-        if (SPI1.finishedAsync()) SPI1.endTransaction();
+        if (SPI1.finishedAsync()){
+            SPI1.endTransaction();
+            SPI1.end();
+        }
+        SPI1.begin(true); // hw CS assertion
         SPI1.beginTransaction(spiSettings);
         SPI1.transferAsync(spi_trans[current_trans].out_buf, spi_trans[current_trans].in_buf, SPI_BUFFER_LEN);
         // swap buffers

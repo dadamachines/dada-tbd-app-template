@@ -36,7 +36,6 @@ void Ui::Init(){
     strip.begin(); // INITIALIZE NeoPixel strip object (REQUIRED)
     strip.show(); // Turn OFF all pixels ASAP
     strip.setBrightness(10);
-
 }
 
 void Ui::displayString(const std::string &s){
@@ -80,7 +79,6 @@ void Ui::Update(){
     digitalWrite(STM32RESET_PIN, true);
     delay(1000);
   }
-
 
   //RunSpiAPITests();
   RunUITests();
