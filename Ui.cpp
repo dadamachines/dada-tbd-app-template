@@ -26,7 +26,7 @@ void Ui::Init(){
     // display init
     // TODO: Adafruit_SH1106G.cpp in Adafruit library, change l. 139, 140 _page_start_offset = 0 to avoid display line offset!
     softSPI = new SoftwareSPI(OLED_SCLK, OLED_DC, OLED_MOSI);
-    display = new Adafruit_SH1106G(128, 64, softSPI, OLED_DC, OLED_RST, OLED_CS, 10000000); // spec is 10MHz
+    display = new DaDa_SSD1309_MCL(128, 64, softSPI, OLED_DC, OLED_RST, OLED_CS, 10000000); // spec is 10MHz
     display->begin(0, true);
     display->setRotation(0);
     display->clearDisplay();
@@ -42,7 +42,7 @@ void Ui::Init(){
 void Ui::displayString(const std::string &s){
     display->clearDisplay();
     display->setTextSize(1);
-    display->setTextColor(SH110X_WHITE);
+    display->setTextColor(SSD1309_WHITE);
     display->setCursor(0, 0);
     display->printf("%s\n", s.c_str());
     display->display();
@@ -51,7 +51,7 @@ void Ui::displayString(const std::string &s){
 void Ui::displayStringWait1s(const std::string &s){
   display->clearDisplay();
   display->setTextSize(1);
-  display->setTextColor(SH110X_WHITE);
+  display->setTextColor(SSD1309_WHITE);
   display->setCursor(0, 0);
   display->printf("%s\n", s.c_str());
   display->display();
@@ -66,7 +66,7 @@ void Ui::Update(){
   if (!p4Ready){
     //displayString("Waiting for P4...");
     display->clearDisplay();
-    display->drawBitmap(0, 0, dada_bitmapx, 128, 64, SH110X_WHITE);
+    display->drawBitmap(0, 0, dada_bitmapx, 128, 64, SSD1309_WHITE);
     display->display();
     // assert reset for stm32
     digitalWrite(STM32RESET_PIN, false);
@@ -184,7 +184,7 @@ void Ui::RunUITests(){
   // print pots
   display->clearDisplay();
   display->setTextSize(1);
-  display->setTextColor(SH110X_WHITE);
+  display->setTextColor(SSD1309_WHITE);
   display->setCursor(0, 0);
   display->printf("%04d %04d %04d %04d\n", ui_data_current.pot_positions[0], ui_data_current.pot_positions[1], ui_data_current.pot_positions[2], ui_data_current.pot_positions[3]);
 

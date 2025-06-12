@@ -11,7 +11,7 @@
 // defines for the OLED display, PIO SPI
 #include <SoftwareSPI.h>
 #include <Adafruit_GFX.h>
-#include <Adafruit_SH110X.h>
+#include "DaDa_SSD1309_MCL.h"
 #define OLED_MOSI 15
 #define OLED_SCLK 14
 #define OLED_DC 12
@@ -39,7 +39,7 @@ class Ui {
     ui_data_t ui_data;
     uint32_t current_ui_data = 0; // current ui data index
     SoftwareSPI *softSPI;
-    Adafruit_SH1106G *display;
+    DaDa_SSD1309_MCL *display;
     Adafruit_NeoPixel strip = Adafruit_NeoPixel(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
     unsigned long previousMillis = 0;
     const uint8_t rgb_led_rp2350 = 0;
