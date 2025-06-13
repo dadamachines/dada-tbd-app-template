@@ -114,7 +114,7 @@ bool DaDa_SSD1309_MCL::begin(uint8_t addr, bool reset) {
 
   // Init sequence, make sure its under 32 bytes, or split into multiples!
   static const uint8_t init[] = {
-        0xDF, 0x12, // command lock
+        0xFD, 0x12, // command lock
         0xAE, // display off
         0xD5, 0xA0, // set display clock divide ratio/oscillator frequency
         0xA8, 0x3F, // set multiplex ratio
