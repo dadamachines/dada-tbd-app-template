@@ -13,7 +13,7 @@ MidiParser midiparser; // MIDI handling
 #define SPI1_MISO 28
 #define SPI1_CS 29
 //#define SPI_BUFFER_LEN 64
-#define SPI_BUFFER_LEN 512
+#define SPI_BUFFER_LEN 1024
 
 // sync codec 44100Hz
 #define WS_PIN 27
