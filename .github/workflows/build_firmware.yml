@@ -32,4 +32,5 @@ jobs:
           name: tbd_frontend
           path: |
             .pio/build/pi2350/firmware.bin
+            .pio/build/pi2350/firmware.uf2
           overwrite: true
