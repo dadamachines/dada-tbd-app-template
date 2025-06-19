@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include <MidiParser.h>
+#include <../src/MidiParser.h>
 
 TEST(MidiParser, some_test)
 {
