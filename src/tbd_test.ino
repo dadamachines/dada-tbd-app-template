@@ -7,12 +7,12 @@ Midi midi; // MIDI handling
 Ui ui; // UI handling
 
 // this if for debug printfs, uses SDA pin on side TBD connector, GPIO20, PIO uart
-SerialPIO transmitter( 20, SerialPIO::NOPIN );
+//SerialPIO transmitter( 20, SerialPIO::NOPIN );
 
 // the setup function runs once when you press reset or power the board
 void setup(){
-    transmitter.begin(115200); // Initialize PIO UART for debug output
-    transmitter.println("CTAG TBD Test started");
+    //transmitter.begin(115200); // Initialize PIO UART for debug output
+    //transmitter.println("CTAG TBD Test started");
     midi.Init(); // Initialize MIDI handling
 }
 
@@ -21,8 +21,8 @@ void setup1(){
 }
 
 void loop(){
-    transmitter.println("CTAG TBD Loop");
-    delay(1000);
+    //transmitter.println("CTAG TBD Loop");
+    //delay(1000);
     midi.Update(); // Update MIDI handling
 }
 
