@@ -12,4 +12,7 @@
 - Build with
   - cd src
   - arduino-cli compile --fqbn rp2040:rp2040:generic_rp2350:variantchip=RP2530B,usbstack=tinyusb_host   --build-path ./build
-- Flash with cp build/src.ino.uf2 /Volumes/RP2350
+- Flash with cp build/src.uf2 /Volumes/RP2350
+
+# Note
+- You may need to delete the .pio folder if you switch between platformio and arduino-cli

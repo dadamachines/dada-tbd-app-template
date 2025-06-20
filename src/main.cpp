@@ -1,4 +1,6 @@
-bool core1_separate_stack = true;
+extern "C" {
+    bool core1_separate_stack = true;
+}
 
 #include "Midi.h"
 #include "Ui.h"
