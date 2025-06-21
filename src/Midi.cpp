@@ -114,6 +114,7 @@ void tuh_midi_rx_cb(uint8_t dev_addr, uint32_t num_packets){
     }
 }
 
+SerialPIO transmitter( 20, SerialPIO::NOPIN );
 void Midi::Init(){
     // WS sync to codec
     pinMode(WS_PIN, INPUT_PULLDOWN); // Configure button pin with pull-up resistor
@@ -160,6 +161,8 @@ void Midi::Init(){
     SPI1.setMOSI(SPI1_MOSI);
     SPI1.setCS(SPI1_CS);
     SPI1.setSCK(SPI1_SCLK);
+
+    transmitter.begin(115200);
 }
 
 void Midi::Update(){
@@ -176,7 +179,30 @@ void Midi::Update(){
     // update midi host
     bool connected = midi_dev_addr != 0 && tuh_midi_configured(midi_dev_addr);
     USBHost.task();
+    uint8_t midi_uart_buf[32];
+    uint8_t *midi_buf_ptr = midi_uart_buf;
+    uint32_t uart_read = 0;
+    while (Serial1.available() > 0 && uart_read < sizeof(midi_uart_buf)){
+        *midi_buf_ptr++ = Serial1.read();
+        transmitter.printf("%02x ", midi_uart_buf[uart_read]);
+        uart_read++;
+    }
+    if (uart_read > 0){
+        midiparser.QueueData(midi_uart_buf, uart_read);
+        midiparser.Update(spi_trans[current_trans].out_buf + 2); // skip fingerprint bytes
+        float *cvs = (float*)spi_trans[current_trans].out_buf + 2;
+        uint8_t *trigs = spi_trans[current_trans].out_buf + 2 + 90*4;
+        transmitter.printf("\nRTD: ");
+        for (int i = 0; i < 10; i++){
+            transmitter.printf("%.3f ", cvs[i]);
+        }
+        for (int i = 0; i < 10; i++){
+            transmitter.printf("%2x ", trigs[i]);
+        }
+        transmitter.printf("\n");
+    }
 
+    return;
     // prepare real-time SPI transfer
     if (ws_sync_counter > 0){
         // get time of last ws sync to detect if p4 is alive
