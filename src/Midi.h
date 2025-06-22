@@ -4,6 +4,7 @@
 class Midi final{
     std::atomic<uint32_t> ledStatus {0};
     std::atomic<uint32_t> p4Alive {0}; // P4 ready status
+
 public:
     void Init();
     void Update();

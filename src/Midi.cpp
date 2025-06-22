@@ -1,7 +1,13 @@
 #include "Midi.h"
 #include "MidiParser.h"
+#include "MidiRunningStatusExpander.h"
+#include <SerialPIO.h>
 
-MidiParser midiparser; // MIDI handling
+SerialPIO transmitter( 20, SerialPIO::NOPIN );
+
+static MidiParser midiparser; // MIDI handling
+static MidiRunningStatusExpander midi_exp_uart0; // MIDI running status expander
+static MidiRunningStatusExpander midi_exp_uart1; // MIDI running status expander
 
 #define USBA_PWR_ENA_GPIO 10
 #define USBA_SEL_GPIO 11
@@ -114,7 +120,6 @@ void tuh_midi_rx_cb(uint8_t dev_addr, uint32_t num_packets){
     }
 }
 
-SerialPIO transmitter( 20, SerialPIO::NOPIN );
 void Midi::Init(){
     // WS sync to codec
     pinMode(WS_PIN, INPUT_PULLDOWN); // Configure button pin with pull-up resistor
@@ -161,8 +166,7 @@ void Midi::Init(){
     SPI1.setMOSI(SPI1_MOSI);
     SPI1.setCS(SPI1_CS);
     SPI1.setSCK(SPI1_SCLK);
-
-    transmitter.begin(115200);
+    transmitter.begin(115000); // Initialize PIO UART for debug output
 }
 
 void Midi::Update(){
@@ -179,30 +183,7 @@ void Midi::Update(){
     // update midi host
     bool connected = midi_dev_addr != 0 && tuh_midi_configured(midi_dev_addr);
     USBHost.task();
-    uint8_t midi_uart_buf[32];
-    uint8_t *midi_buf_ptr = midi_uart_buf;
-    uint32_t uart_read = 0;
-    while (Serial1.available() > 0 && uart_read < sizeof(midi_uart_buf)){
-        *midi_buf_ptr++ = Serial1.read();
-        transmitter.printf("%02x ", midi_uart_buf[uart_read]);
-        uart_read++;
-    }
-    if (uart_read > 0){
-        midiparser.QueueData(midi_uart_buf, uart_read);
-        midiparser.Update(spi_trans[current_trans].out_buf + 2); // skip fingerprint bytes
-        float *cvs = (float*)spi_trans[current_trans].out_buf + 2;
-        uint8_t *trigs = spi_trans[current_trans].out_buf + 2 + 90*4;
-        transmitter.printf("\nRTD: ");
-        for (int i = 0; i < 10; i++){
-            transmitter.printf("%.3f ", cvs[i]);
-        }
-        for (int i = 0; i < 10; i++){
-            transmitter.printf("%2x ", trigs[i]);
-        }
-        transmitter.printf("\n");
-    }
 
-    return;
     // prepare real-time SPI transfer
     if (ws_sync_counter > 0){
         // get time of last ws sync to detect if p4 is alive
@@ -233,34 +214,29 @@ void Midi::Update(){
                 Serial2.write(midi_data, *midi_len);
             }
         }
-        // get data from UARTS
-        uint8_t midi_uart_buf[32];
-        uint8_t *midi_buf_ptr = midi_uart_buf;
-        uint32_t uart_read = 0;
-        while (Serial1.available() > 0 && uart_read < sizeof(midi_uart_buf)){
-            *midi_buf_ptr++ = Serial1.read();
-            uart_read++;
+
+        // get data from UARTS, expand message, sometime single bytes are received, sometimes they may be running status
+        while (Serial1.available() > 0){
+            MidiRunningStatusExpander::FeedResult res = midi_exp_uart0.Feed(Serial1.read());
+            if (res == MidiRunningStatusExpander::FeedResult::MessageComplete){
+                int len;
+                const uint8_t* msg = midi_exp_uart0.GetMessage(len);
+                for (int i = 0; i < len; i++){
+                    transmitter.printf("%02X ", msg[i]); // debug output to PIO UART
+                }
+                transmitter.printf("\n");
+                midiparser.QueueData((uint8_t*)msg, len);
+            }
         }
-        if (uart_read > 0){
-            midiparser.QueueData(midi_uart_buf, uart_read);
+        while (Serial2.available() > 0){
+            MidiRunningStatusExpander::FeedResult res = midi_exp_uart1.Feed(Serial2.read());
+            if (res == MidiRunningStatusExpander::FeedResult::MessageComplete){
+                int len;
+                const uint8_t* msg = midi_exp_uart0.GetMessage(len);
+                midiparser.QueueData((uint8_t*)msg, len);
+            }
         }
-        midi_buf_ptr = midi_uart_buf;
-        uart_read = 0; // reset uart read count
-        while (Serial2.available() > 0 && uart_read < sizeof(midi_uart_buf)){
-            *midi_buf_ptr++ = Serial2.read();
-            uart_read++;
-        }
-        if (uart_read > 0){
-            midiparser.QueueData(midi_uart_buf, uart_read);
-        }
-        /*
-        Serial1.write(0x90);
-        Serial1.write(0x45); // send a note on message to indicate that we are processing MIDI data
-        Serial1.write(0x7F); // velocity
-        Serial2.write(0x91);
-        Serial2.write(0x45); // send a note on message to indicate that we are processing MIDI data
-        Serial2.write(0x7F); // velocity
-        */
+
         // if we have a word clock sync /32 = one block size, then we can update the MIDI parser
         midiparser.Update(spi_trans[current_trans].out_buf + 2); // skip fingerprint bytes
 
