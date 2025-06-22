@@ -758,10 +758,15 @@ void MidiParser::noteOff(uint8_t* msg)
 
 // --- General BBA Initialisation Method ---
 void MidiParser::Init() {
-    memset(buf0, 0, DATA_SZ);                       // Reset "virtual CV"-data at startup
-    memset(midi_note_trig, 1,
-           N_TRIGS);             // Reset "virtual Gate/Trigger"-data at startup (1==off aka TRIG_OFF)
-    setCVandTriggerPointers(midi_data, midi_note_trig);    // Pass on pointer to CV and Trigger shared data
+    for (int i = 0; i < FIFO_DEPTH; i++){
+        uint8_t *cvs = computed_cv_trg_buf + i * DATA_SZ; // Get pointer to current CVs and Triggers buffer
+        uint8_t *trgs = cvs + N_CVS * 4; // Get pointer to current Triggers buffer, positioned directly behind CVs in a common array for CVs+Triggers
+        memset(cvs, 0, DATA_SZ);                       // Reset "virtual CV"-data at startup
+        memset(trgs, 1,
+               N_TRIGS);             // Reset "virtual Gate/Trigger"-data at startup (1==off aka TRIG_OFF)
+    }
+    midi_cvs = (float*) computed_cv_trg_buf;
+    midi_triggers = computed_cv_trg_buf + N_CVS * 4; // Set pointer to CVs and Triggers in common buffer, so we can access them directly
 }
 
 // queue data for MIDI messages to be processed, returns the length of the queued data to identify if everything was queued
@@ -776,11 +781,6 @@ uint32_t MidiParser::QueueData(uint8_t *data, uint32_t size) {
 
 // ===  MIDI-parsing method (Please note: Running status is not processed correctly with this implementation!) ===
 void MidiParser::Update(uint8_t *spi_data) {
-    if (len == 0){
-        // copy old data to spi_data if no new data is available
-        memcpy(spi_data, buf0, DATA_SZ);
-        return;                // We return the identical CV / Trigger data as last round
-    }
 
     ptr = msgBuffer; // Set pointer to beginning of message-buffer, so we can parse it
     len += missing_bytes_offset;    // We may have incomplete messages from last round to process here, so we add their (partial) length, zero otherwise!
@@ -807,6 +807,7 @@ void MidiParser::Update(uint8_t *spi_data) {
                         noteOn(loc_msg);     // Process message and fill buffer for virtual CV/Gates which can be looked up from plugin if tagged via WebUI
                         len -= 2;                   // Noteon Messages have 3 byte, we already read the status byte
                         ptr += 2;                   // Advance buffer-pointer to next message for next round of parsing
+                        EnqueueFifo(); // on successful parse, enqueue in fifo
                     }
                     else                            // Message is shorter than anticipaded
                     {
@@ -827,6 +828,7 @@ void MidiParser::Update(uint8_t *spi_data) {
                         noteOff(loc_msg);
                         ptr += 2;                   // Advance buffer-pointer to next message for next round of parsing
                         len -= 2;                   // Noteoff Messages have 3 byte, we already read the status byte
+                        EnqueueFifo(); // on successful parse, enqueue in fifo
                     }
                     else                            // Message is shorter than anticipaded
                     {
@@ -846,6 +848,7 @@ void MidiParser::Update(uint8_t *spi_data) {
                         channelPressure(loc_msg);    // Process message and fill buffer for virtual CV/Gates which can be looked up from plugin if tagged via WebUI
                         len -= 1;                   // ChannelPressure Messages have 2 byte, we already read the status byte
                         ptr += 1;                   // Advance buffer-pointer to next message for next round of parsing
+                        EnqueueFifo(); // on successful parse, enqueue in fifo
                     }
                     else                            // Message is shorter than anticipaded
                     {
@@ -864,6 +867,7 @@ void MidiParser::Update(uint8_t *spi_data) {
                         pitchBend(loc_msg);  // Process message and fill buffer for virtual CV/Gates which can be looked up from plugin if tagged via WebUI
                         len -= 2;                   // Pitchshift Messages have 3 byte, we already read the status byte
                         ptr += 2;                   // Advance buffer-pointer to next messager for next round of parsing
+                        EnqueueFifo(); // on successful parse, enqueue in fifo
                     }
                     else                            // Message is shorter than anticipaded
                     {
@@ -884,6 +888,7 @@ void MidiParser::Update(uint8_t *spi_data) {
                         controlChange(loc_msg);  // Process message and fill buffer for virtual CV/Gates which can be looked up from plugin if tagged via WebUI
                         len -= 2;                   // Continuous Controller Messages have 3 byte, we already read the status byte
                         ptr += 2;                   // Advance buffer-pointer to next message for next round of parsing
+                        EnqueueFifo(); // on successful parse, enqueue in fifo
                     }
                     else                            // Message is shorter than anticipaded
                     {
@@ -903,6 +908,7 @@ void MidiParser::Update(uint8_t *spi_data) {
                         programChange(loc_msg);  // Process message and fill buffer for virtual CV/Gates which can be looked up from plugin if tagged via WebUI
                         len -= 1;                   // Program Change Messages have 3 byte, we already read the status byte
                         ptr += 1;                   // Advance buffer-pointer to next messager for next round of parsing
+                        EnqueueFifo(); // on successful parse, enqueue in fifo
                     }
                     else                            // Message is shorter than anticipaded
                     {
@@ -925,6 +931,7 @@ void MidiParser::Update(uint8_t *spi_data) {
                     noteOn(ptr);     // Process message and fill buffer for virtual CV/Gates which can be looked up from plugin if tagged via WebUI
                     len -= 3;                   // Noteon Messages have 3 byte, we already read the status byte
                     ptr += 3;                   // Advance buffer-pointer to next message for next round of parsing
+                    EnqueueFifo(); // on successful parse, enqueue in fifo
                 }
                 else                            // Message is shorter than anticipaded
                 {
@@ -944,6 +951,7 @@ void MidiParser::Update(uint8_t *spi_data) {
                     noteOff(ptr);
                     ptr += 3;                   // Advance buffer-pointer to next message for next round of parsing
                     len -= 3;                   // Noteoff Messages have 3 byte, we already read the status byte
+                    EnqueueFifo(); // on successful parse, enqueue in fifo
                 }
                 else                            // Message is shorter than anticipaded
                 {
@@ -968,6 +976,7 @@ void MidiParser::Update(uint8_t *spi_data) {
                     channelPressure(ptr);    // Process message and fill buffer for virtual CV/Gates which can be looked up from plugin if tagged via WebUI
                     len -= 2;                   // ChannelPressure Messages have 2 byte, we already read the status byte
                     ptr += 2;                   // Advance buffer-pointer to next message for next round of parsing
+                    EnqueueFifo(); // on successful parse, enqueue in fifo
                 }
                 else                            // Message is shorter than anticipaded
                 {
@@ -990,6 +999,7 @@ void MidiParser::Update(uint8_t *spi_data) {
                     pitchBend(ptr);  // Process message and fill buffer for virtual CV/Gates which can be looked up from plugin if tagged via WebUI
                     len -= 3;                   // Pitchshift Messages have 3 byte, we already read the status byte
                     ptr += 3;                   // Advance buffer-pointer to next messager for next round of parsing
+                    EnqueueFifo(); // on successful parse, enqueue in fifo
                 }
                 else                            // Message is shorter than anticipaded
                 {
@@ -1014,6 +1024,7 @@ void MidiParser::Update(uint8_t *spi_data) {
                     controlChange(ptr);  // Process message and fill buffer for virtual CV/Gates which can be looked up from plugin if tagged via WebUI
                     len -= 3;                   // Continuous Controller Messages have 3 byte, we already read the status byte
                     ptr += 3;                   // Advance buffer-pointer to next message for next round of parsing
+                    EnqueueFifo(); // on successful parse, enqueue in fifo
                 }
                 else                            // Message is shorter than anticipaded
                 {
@@ -1038,6 +1049,7 @@ void MidiParser::Update(uint8_t *spi_data) {
                     programChange(ptr);  // Process message and fill buffer for virtual CV/Gates which can be looked up from plugin if tagged via WebUI
                     len -= 2;                   // Program Change Messages have 3 byte, we already read the status byte
                     ptr += 2;                   // Advance buffer-pointer to next messager for next round of parsing
+                    EnqueueFifo(); // on successful parse, enqueue in fifo
                 }
                 else                            // Message is shorter than anticipaded
                 {
@@ -1065,8 +1077,9 @@ void MidiParser::Update(uint8_t *spi_data) {
                 len--;                          // Shorten read-lenght for next round of parsing
                 ptr++;                          // Skip invalid byte, may be simply a MIDI-clock message for instance
         }
-    }
+    } // end while len
     // copy all processed data to spi_data buffer for transfer to audio-thread
-    memcpy(spi_data, buf0, DATA_SZ);
-    return;
+    memcpy(spi_data, current_ptr_cv_trg_buf_read, DATA_SZ);
+    // increment fifo read pointer to next entry
+    DequeueFifo();
 }

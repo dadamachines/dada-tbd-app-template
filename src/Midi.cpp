@@ -3,7 +3,6 @@
 #include "MidiRunningStatusExpander.h"
 #include <SerialPIO.h>
 
-SerialPIO transmitter( 20, SerialPIO::NOPIN );
 
 static MidiParser midiparser; // MIDI handling
 static MidiRunningStatusExpander midi_exp_uart0; // MIDI running status expander
@@ -166,7 +165,6 @@ void Midi::Init(){
     SPI1.setMOSI(SPI1_MOSI);
     SPI1.setCS(SPI1_CS);
     SPI1.setSCK(SPI1_SCLK);
-    transmitter.begin(115000); // Initialize PIO UART for debug output
 }
 
 void Midi::Update(){
@@ -221,10 +219,6 @@ void Midi::Update(){
             if (res == MidiRunningStatusExpander::FeedResult::MessageComplete){
                 int len;
                 const uint8_t* msg = midi_exp_uart0.GetMessage(len);
-                for (int i = 0; i < len; i++){
-                    transmitter.printf("%02X ", msg[i]); // debug output to PIO UART
-                }
-                transmitter.printf("\n");
                 midiparser.QueueData((uint8_t*)msg, len);
             }
         }

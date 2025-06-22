@@ -23,24 +23,25 @@ respective component folders / files if different from this license.
 #pragma once
 
 #include <cstdint>
+#include <cstring>
 
 #define N_CVS 90
 #define N_TRIGS 40
 
-// --- Define-contants for MIDI-mapping-related stuff --- 
+// --- Define-contants for MIDI-mapping-related stuff ---
 #define MIDI_NOTE_0V                48  // is C3
 #define MAX_ACTIVE_CHANNELS          5  // Size of Dimension 1: MIDI-Channels 1-5 (internally 0-4)
 #define MAX_ACTIVE_CTRLVALS         18  // Size of CV-Dimension 2: One Empty Element + Number of CV-mapable Notes, Velocities, Aftertouch, Banks, Subbanks, Progchanges and CCs
-#define MAX_ACTIVE_TRIGVALS          8  // Size of Trig-Dimension 2: One Empty Element + Number of Trigger-mapable Notes, Velocities, Aftertouch, ProgChange, and CCs 
+#define MAX_ACTIVE_TRIGVALS          8  // Size of Trig-Dimension 2: One Empty Element + Number of Trigger-mapable Notes, Velocities, Aftertouch, ProgChange, and CCs
 #define MIDI_GLOBAL_CHANNEL          0  // MIDI Channel 1 is Master and Global channel (internally 0)
-#define MIDI_VOICE_A                 1  // MIDI Channel 2 is used for Voice A, especially concerning monophonic voice-mode 
-#define MIDI_VOICE_B                 2  // MIDI Channel 3 is used for Voice B, especially concerning monophonic voice-mode 
+#define MIDI_VOICE_A                 1  // MIDI Channel 2 is used for Voice A, especially concerning monophonic voice-mode
+#define MIDI_VOICE_B                 2  // MIDI Channel 3 is used for Voice B, especially concerning monophonic voice-mode
 #define MIDI_GLOBAL_CHANNEL_14      13  // MIDI Channel for PolyPhonic roundrobin playmode, additional controls will be remapped to global channel
 #define MIDI_GLOBAL_CHANNEL_15      14  // MIDI Channel for Duophonic playmode, additional controls will be remapped to global channel
 #define MIDI_GLOBAL_CHANNEL_16      15  // MIDI Channel for Polyphonic playmode, additional controls will be remapped to global channelMIDI Channel 16 is secondary MPE-Master / provides logarithmic pitchbend (internally 15)
 #define IS_MONOPHONIC(chan)         (chan==0)    // Global Channel 1 => Monophonic
 #define IS_PERCUSSION(chan)         (chan==9 || chan==10 || chan==11 || chan==12) // MIDI Channel 10-13 allow trigger-notes for typically percussive synths. (General MIDI standard supports 10 and 11 for drums)
-#define IGNORE_CHAN_6_TO_9(chan)    (ignore_channels_6to9 && (chan==5 || chan==6 || chan==7 || chan==8) ) // Returns true if channel to be ignored 
+#define IGNORE_CHAN_6_TO_9(chan)    (ignore_channels_6to9 && (chan==5 || chan==6 || chan==7 || chan==8) ) // Returns true if channel to be ignored
 #define IS_UPPER_GLOBAL(chan)       (chan > 12)    // Macro-Funktion to determine if channel is withing the range of MIDI-Channels 14 to 16
 #define IS_DUOPHONIC(chan)          (channel==MIDI_GLOBAL_CHANNEL_14 || channel==MIDI_GLOBAL_CHANNEL_15)   // A/B or C/D Duophonic?
 #define IS_DUO_AB(chan)             (channel==MIDI_GLOBAL_CHANNEL_14)   // A/B Duophonic
@@ -73,12 +74,13 @@ class MidiParser final
     #define MIDI_BUF_SZ (256)
 
     // --- Calculate size of buffer for "CV" and "Gate/Trigger" values to be exchanged with audio-thread / plugins ---
-    #define DATA_SZ  (N_CVS * 4 + N_TRIGS + 2) // why +2, no idea!
+    #define DATA_SZ  (N_CVS * 4 + N_TRIGS)
+    #define FIFO_DEPTH 10
 
     // === Buffer to pass on MIDI-Event as virtual CV and Gate 'voltages', normalized to -1.f...+1.f (CV) and 0 or 1 integers (Triggers/Gates) ===
-    uint8_t buf0[DATA_SZ];     // Common Array of Data for CVs and Triggers, will be passed on at audio-rate, so that Plugins can process this data
-    float *midi_data = (float *) buf0; // CVs: Array of floats, positioned directly before Triggers in a common array for CVs+Triggers
-    uint8_t *midi_note_trig = &buf0[N_CVS * 4];  // Triggers: Array of Bytes, positioned directly behind CVs in a common array for CVs+Triggers
+    uint8_t computed_cv_trg_buf[DATA_SZ*FIFO_DEPTH];     // Common Array of Data for CVs and Triggers, will be passed on at audio-rate, so that Plugins can process this data
+    uint8_t *current_ptr_cv_trg_buf_write = computed_cv_trg_buf;
+    uint8_t *current_ptr_cv_trg_buf_read = computed_cv_trg_buf;
 
     // --- MIDI incomind messages buffer to be read via UART ---
     uint8_t msgBuffer[MIDI_BUF_SZ]; // ## ??? Message-buffer for MIDI-parsing with added alligned space, in principle we only need 130 (128+2) Byte, though...
@@ -111,12 +113,6 @@ class MidiParser final
             pitchBendStatus       = 0XE0
         };
 
-        // === Initialisation: link CV/Trigger data-pointers initially by bba_init() in Control.cpp ===
-        inline void setCVandTriggerPointers( float* midi_data, uint8_t* midi_note_trig )
-        {
-            midi_cvs = midi_data;
-            midi_triggers = midi_note_trig;
-        }
         // === Public main Funtions ===
         // --- Process all midi-events and if needed map to CVs or Triggers for audio-thread ---
         void controlChange(uint8_t* msg);       // For MIDI-events that are assignable via GUI process Conctrol Change messages and write to transfer-queue
@@ -462,4 +458,31 @@ class MidiParser final
         TRIG_id_glob ccToTrigId_glob(uint8_t cc);    // Global Channel: Map CCs to enums for Trigger-indexes
         TRIG_id_glob globTRIGid;   // Return-value of function for examination
         Control_element_cv_id noteToCVid_perc(uint8_t drum_note); // Map incoming notes from percussion channel to indexes for CVs representing their velocity equicalent
+
+        bool EnqueueFifo() {
+            int32_t nextWrite = (fifoCurrentWrite + 1) % FIFO_DEPTH;
+            if (nextWrite == fifoCurrentRead) {
+                // Buffer full
+                return false;
+            }
+            // Advance write pointer and copy last computed data to new position, the parser only modifies data if a message was received, if none were received the last computed data is valid -> i.e. copy
+            uint8_t *previous_computed_data_ptr = current_ptr_cv_trg_buf_write; // Remember previous pointer
+            fifoCurrentWrite = nextWrite;
+            current_ptr_cv_trg_buf_write = computed_cv_trg_buf + fifoCurrentWrite * DATA_SZ;
+            memcpy(current_ptr_cv_trg_buf_write, previous_computed_data_ptr, DATA_SZ);
+            midi_cvs = (float *) current_ptr_cv_trg_buf_write; // CVs: Array of floats, positioned directly before Triggers in a common array for CVs+Triggers
+            midi_triggers = &current_ptr_cv_trg_buf_write[N_CVS * 4];  // Triggers: Array of Bytes, positioned directly behind CVs in a common array for CVs+Triggers
+            return true;
+        }
+        bool DequeueFifo() {
+            if (fifoCurrentRead == fifoCurrentWrite) {
+                // Buffer empty
+                return false;
+            }
+            fifoCurrentRead = (fifoCurrentRead + 1) % FIFO_DEPTH;
+            current_ptr_cv_trg_buf_read = computed_cv_trg_buf + fifoCurrentRead * DATA_SZ;
+            return true;
+        }
+        int32_t fifoCurrentWrite {0};
+        int32_t fifoCurrentRead {0};
     };
