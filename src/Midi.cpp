@@ -226,7 +226,7 @@ void Midi::Update(){
             MidiRunningStatusExpander::FeedResult res = midi_exp_uart1.Feed(Serial2.read());
             if (res == MidiRunningStatusExpander::FeedResult::MessageComplete){
                 int len;
-                const uint8_t* msg = midi_exp_uart0.GetMessage(len);
+                const uint8_t* msg = midi_exp_uart1.GetMessage(len);
                 midiparser.QueueData((uint8_t*)msg, len);
             }
         }
