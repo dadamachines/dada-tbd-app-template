@@ -15,4 +15,4 @@
 - Flash with cp build/src.uf2 /Volumes/RP2350
 
 # Note
-- You may need to delete the .pio folder if you switch between platformio and arduino-cli
+- You may need to delete the .pio folder, or the build folder respectively, if you switch between platformio and arduino-cli

@@ -5,12 +5,14 @@ public:
     enum class FeedResult {
         MessageComplete,
         BytesMissing,
+        SystemRealtimeMessage,
         InvalidMessage
     };
 
     MidiRunningStatusExpander() : running_status(0), needed_bytes(0), message_len(0) {}
 
     FeedResult Feed(uint8_t byte) {
+        if (byte >= 0xF8 && byte <= 0xFF) return FeedResult::SystemRealtimeMessage; // System realtime messages
         if (byte & 0x80) { // Status byte
             running_status = byte;
             message[0] = byte;

@@ -182,6 +182,27 @@ void Midi::Update(){
     bool connected = midi_dev_addr != 0 && tuh_midi_configured(midi_dev_addr);
     USBHost.task();
 
+    // update uarts
+    // get data from UARTS, expand message, sometime single bytes are received, sometimes they may be running status
+    while (Serial1.available() > 0){
+        uint8_t val = Serial1.read();
+        Serial1.write(val); // midi thru
+        MidiRunningStatusExpander::FeedResult res = midi_exp_uart0.Feed(val);
+        if (res == MidiRunningStatusExpander::FeedResult::MessageComplete){
+            int len;
+            const uint8_t* msg = midi_exp_uart0.GetMessage(len);
+            midiparser.QueueData((uint8_t*)msg, len);
+        }
+    }
+    while (Serial2.available() > 0){
+        MidiRunningStatusExpander::FeedResult res = midi_exp_uart1.Feed(Serial2.read());
+        if (res == MidiRunningStatusExpander::FeedResult::MessageComplete){
+            int len;
+            const uint8_t* msg = midi_exp_uart1.GetMessage(len);
+            midiparser.QueueData((uint8_t*)msg, len);
+        }
+    }
+
     // prepare real-time SPI transfer
     if (ws_sync_counter > 0){
         // get time of last ws sync to detect if p4 is alive
@@ -208,29 +229,10 @@ void Midi::Update(){
             midiparser.QueueData(midi_data, *midi_len);
             // forward to UARTS
             if (*midi_len > 0){
-                Serial1.write(midi_data, *midi_len);
-                Serial2.write(midi_data, *midi_len);
+                //Serial1.write(midi_data, *midi_len);
+                Serial2.write(midi_data, *midi_len); // from p4 usb device midi in
             }
         }
-
-        // get data from UARTS, expand message, sometime single bytes are received, sometimes they may be running status
-        while (Serial1.available() > 0){
-            MidiRunningStatusExpander::FeedResult res = midi_exp_uart0.Feed(Serial1.read());
-            if (res == MidiRunningStatusExpander::FeedResult::MessageComplete){
-                int len;
-                const uint8_t* msg = midi_exp_uart0.GetMessage(len);
-                midiparser.QueueData((uint8_t*)msg, len);
-            }
-        }
-        while (Serial2.available() > 0){
-            MidiRunningStatusExpander::FeedResult res = midi_exp_uart1.Feed(Serial2.read());
-            if (res == MidiRunningStatusExpander::FeedResult::MessageComplete){
-                int len;
-                const uint8_t* msg = midi_exp_uart1.GetMessage(len);
-                midiparser.QueueData((uint8_t*)msg, len);
-            }
-        }
-
         // if we have a word clock sync /32 = one block size, then we can update the MIDI parser
         midiparser.Update(spi_trans[current_trans].out_buf + 2); // skip fingerprint bytes
 
