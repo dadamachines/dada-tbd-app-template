@@ -278,6 +278,12 @@ void Ui::RunUITests(){
 
   display->printf("FPS %dHz, MSPF %dms\n", 1000 / delta, delta);
 
+  // in level bar
+  uint16_t cy = display->getCursorY();
+  display->fillRect(0, cy, r>>2, 4, SSD1309_WHITE);
+  display->fillRect(0, cy+5, g>>2, 4, SSD1309_WHITE);
+  if (b) display->fillCircle(128-4, 2, 2, SSD1309_WHITE);
+
   // 120 bpm indicator approx.
   if(bpm > 71){
     strip.setPixelColor(rgb_led_mcl, strip.Color(255, 255, 255));
