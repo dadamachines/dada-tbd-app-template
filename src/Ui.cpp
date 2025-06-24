@@ -280,9 +280,10 @@ void Ui::RunUITests(){
 
   // in level bar
   uint16_t cy = display->getCursorY();
-  display->fillRect(0, cy, r>>2, 4, SSD1309_WHITE);
-  display->fillRect(0, cy+5, g>>2, 4, SSD1309_WHITE);
-  if (b) display->fillCircle(128-4, 2, 2, SSD1309_WHITE);
+  display->fillRect(0, cy, r>>1, 4, SSD1309_WHITE);
+  display->fillRect(0, cy+5, g>>1, 4, SSD1309_WHITE);
+  if (b) display->fillCircle(128-4, 3, 2, SSD1309_WHITE);
+  else display->drawCircle(128-4, 3, 2, SSD1309_WHITE);
 
   // 120 bpm indicator approx.
   if(bpm > 71){
