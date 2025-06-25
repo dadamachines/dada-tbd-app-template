@@ -24,7 +24,6 @@ void Ui::Init(){
     Wire1.begin();
 
     // display init
-    // TODO: Adafruit_SH1106G.cpp in Adafruit library, change l. 139, 140 _page_start_offset = 0 to avoid display line offset!
     softSPI = new SoftwareSPI(OLED_SCLK, OLED_DC, OLED_MOSI);
     display = new DaDa_SSD1309_MCL(128, 64, softSPI, OLED_DC, OLED_RST, OLED_CS); // spec is 10MHz
     display->begin(0, true);
