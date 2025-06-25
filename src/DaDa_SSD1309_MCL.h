@@ -40,7 +40,7 @@ class DaDa_SSD1309_MCL : public Adafruit_GrayOLED{
 public:
     DaDa_SSD1309_MCL(uint16_t w, uint16_t h, SPIClass *spi, int16_t dc_pin,
                   int16_t rst_pin, int16_t cs_pin,
-                  uint32_t bitrate = 10000000UL);
+                  uint32_t bitrate = 8000000UL);
     virtual ~DaDa_SSD1309_MCL(void);
 
     void display(void);
