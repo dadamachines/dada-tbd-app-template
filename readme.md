@@ -9,6 +9,7 @@
     - adafruit/Adafruit NeoPixel@^1.12.4
     - https://github.com/ctag-fh-kiel/Adafruit_TinyUSB_Arduino.git#fix/usb_host_arturia_bspro
     - https://github.com/rppicomidi/usb_midi_host.git#1.1.4
+    - https://github.com/ctag-fh-kiel/dada-ssd1309-mcl#v1.0
 - Build with
   - cd src
   - arduino-cli compile --fqbn rp2040:rp2040:generic_rp2350:variantchip=RP2530B,usbstack=tinyusb_host   --build-path ./build
