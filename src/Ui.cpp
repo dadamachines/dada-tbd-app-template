@@ -1,10 +1,15 @@
 #include "Ui.h"
 #include "SpiAPI.h"
 #include "DadaLogo.h"
+#include <SD.h>
 
 SpiAPI spi_api;
 
 #define STM32RESET_PIN 40
+
+#define RP_CLK_GPIO 2
+#define RP_CMD_GPIO 3
+#define RP_DAT0_GPIO 4
 
 void Ui::Init(){
     // reset stm
@@ -33,6 +38,9 @@ void Ui::Init(){
     strip.begin(); // INITIALIZE NeoPixel strip object (REQUIRED)
     strip.show(); // Turn OFF all pixels ASAP
     strip.setBrightness(10);
+
+    // sd-card
+    sdInitialized = SD.begin(RP_CLK_GPIO, RP_CMD_GPIO, RP_DAT0_GPIO);
 }
 
 void Ui::displayString(const std::string &s){
@@ -273,7 +281,14 @@ void Ui::RunUITests(){
   display.printf("%s\n", buf);
 
 
-  display.printf("FPS %dHz, MSPF %dms\n", 1000 / delta, delta);
+  display.printf("FPS %dHz ", 1000 / delta);
+
+  // sd card status
+  if (sdInitialized){
+    display.printf("SD TYPE %d", SD.type());
+  }else{
+    display.printf("no SD");
+  }
 
   // in level bar
   uint16_t cy = display.getCursorY();
@@ -281,6 +296,7 @@ void Ui::RunUITests(){
   display.fillRect(0, cy+5, g>>1, 4, SSD1309_WHITE);
   if (b) display.fillCircle(128-4, 3, 2, SSD1309_WHITE);
   else display.drawCircle(128-4, 3, 2, SSD1309_WHITE);
+
 
   // 120 bpm indicator approx.
   if(bpm > 71){

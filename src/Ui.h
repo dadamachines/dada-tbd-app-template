@@ -41,6 +41,7 @@ class Ui {
     SoftwareSPI softSPI {SoftwareSPI(OLED_SCLK, OLED_DC, OLED_MOSI)};
     DaDa_SSD1309 display {DaDa_SSD1309(128, 64, &softSPI, OLED_DC, OLED_RST, OLED_CS)};
     Adafruit_NeoPixel strip = Adafruit_NeoPixel(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
+    bool sdInitialized {false}; // SD card initialized flag
     unsigned long previousMillis = 0;
     const uint8_t rgb_led_rp2350 = 0;
     const uint8_t rgb_led_btn_map[16] = {8, 7, 6, 5, 4, 3, 2, 1, 9, 10, 11, 12, 13, 14, 15, 16};
