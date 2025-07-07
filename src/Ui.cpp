@@ -289,6 +289,7 @@ void Ui::RunUITests(){
   }else{
     display.printf("no SD");
   }
+  display.printf("\n");
 
   // in level bar
   uint16_t cy = display.getCursorY();
