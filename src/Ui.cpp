@@ -287,7 +287,7 @@ void Ui::RunUITests(){
   if (sdInitialized){
     display.printf("SD TYPE %d", SD.type());
   }else{
-    display.printf("no SD");
+    display.printf("NO SD");
   }
   display.printf("\n");
 
