@@ -24,12 +24,10 @@ void Ui::Init(){
     Wire1.begin();
 
     // display init
-    softSPI = new SoftwareSPI(OLED_SCLK, OLED_DC, OLED_MOSI);
-    display = new DaDa_SSD1309_MCL(128, 64, softSPI, OLED_DC, OLED_RST, OLED_CS); // spec is 10MHz
-    display->begin(0, true);
-    display->setRotation(0);
-    display->clearDisplay();
-    display->display();
+    display.begin(0, true);
+    display.setRotation(0);
+    display.clearDisplay();
+    display.display();
 
     // NeoPixel init
     strip.begin(); // INITIALIZE NeoPixel strip object (REQUIRED)
@@ -38,21 +36,21 @@ void Ui::Init(){
 }
 
 void Ui::displayString(const std::string &s){
-    display->clearDisplay();
-    display->setTextSize(1);
-    display->setTextColor(SSD1309_WHITE);
-    display->setCursor(0, 0);
-    display->printf("%s\n", s.c_str());
-    display->display();
+    display.clearDisplay();
+    display.setTextSize(1);
+    display.setTextColor(SSD1309_WHITE);
+    display.setCursor(0, 0);
+    display.printf("%s\n", s.c_str());
+    display.display();
 }
 
 void Ui::displayStringWait1s(const std::string &s){
-  display->clearDisplay();
-  display->setTextSize(1);
-  display->setTextColor(SSD1309_WHITE);
-  display->setCursor(0, 0);
-  display->printf("%s\n", s.c_str());
-  display->display();
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setTextColor(SSD1309_WHITE);
+  display.setCursor(0, 0);
+  display.printf("%s\n", s.c_str());
+  display.display();
   delay(1000);
 }
 
@@ -63,9 +61,9 @@ void Ui::Update(){
   lastTime = currentTime;
   if (!p4Ready){
     //displayString("Waiting for P4...");
-    display->clearDisplay();
-    display->drawBitmap(0, 0, dada_bitmapx, 128, 64, SSD1309_WHITE);
-    display->display();
+    display.clearDisplay();
+    display.drawBitmap(0, 0, dada_bitmapx, 128, 64, SSD1309_WHITE);
+    display.display();
     // assert reset for stm32
     digitalWrite(STM32RESET_PIN, false);
     resetRequested = true;
@@ -179,18 +177,18 @@ void Ui::RunUITests(){
   char buf[64];
 
   // print pots
-  display->clearDisplay();
-  display->setTextSize(1);
-  display->setTextColor(SSD1309_WHITE);
-  display->setCursor(0, 0);
-  display->printf("%04d %04d %04d %04d\n", ui_data_current.pot_positions[0], ui_data_current.pot_positions[1], ui_data_current.pot_positions[2], ui_data_current.pot_positions[3]);
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setTextColor(SSD1309_WHITE);
+  display.setCursor(0, 0);
+  display.printf("%04d %04d %04d %04d\n", ui_data_current.pot_positions[0], ui_data_current.pot_positions[1], ui_data_current.pot_positions[2], ui_data_current.pot_positions[3]);
 
   for(int i=0, j=0;i<4;i++){
     if(ui_data_current.pot_states[i] & (1 << 0)) buf[j++] = '1'; else buf[j++] = '0';
     if(ui_data_current.pot_states[i] & (1 << 1)) buf[j++] = '1'; else buf[j++] = '0';
   }
   buf[8] = 0;
-  display->printf("%s\n", buf);
+  display.printf("%s\n", buf);
 
   // print dbuttons
   for(int i=0;i<16;i++){
@@ -207,7 +205,7 @@ void Ui::RunUITests(){
     }
   }
   buf[16] = 0;
-  display->printf("%s\n", buf);
+  display.printf("%s\n", buf);
 
   // print fbuttons
   /*
@@ -236,7 +234,7 @@ void Ui::RunUITests(){
   uint8_t g = (ledStatus >> 8) & 0xff;
   uint8_t r = (ledStatus >> 16) & 0xff;
   strip.setPixelColor(rgb_led_fbtn_map[0], strip.Color(r, g, b));
-  //display->printf("%d\n", ledStatus);
+  //display.printf("%d\n", ledStatus);
 
   for(int i=0;i<5;i++){
     if(ui_data_current.f_btns & (1 << i)){
@@ -250,7 +248,7 @@ void Ui::RunUITests(){
     }
   }
   buf[5] = 0;
-  display->printf("%s\n", buf);
+  display.printf("%s\n", buf);
 
   // print mcl buttons
   if (ui_data_current.mcl_btns & (1 << 1))
@@ -272,17 +270,17 @@ void Ui::RunUITests(){
     }
   }
   buf[13] = 0;
-  display->printf("%s\n", buf);
+  display.printf("%s\n", buf);
 
 
-  display->printf("FPS %dHz, MSPF %dms\n", 1000 / delta, delta);
+  display.printf("FPS %dHz, MSPF %dms\n", 1000 / delta, delta);
 
   // in level bar
-  uint16_t cy = display->getCursorY();
-  display->fillRect(0, cy, r>>1, 4, SSD1309_WHITE);
-  display->fillRect(0, cy+5, g>>1, 4, SSD1309_WHITE);
-  if (b) display->fillCircle(128-4, 3, 2, SSD1309_WHITE);
-  else display->drawCircle(128-4, 3, 2, SSD1309_WHITE);
+  uint16_t cy = display.getCursorY();
+  display.fillRect(0, cy, r>>1, 4, SSD1309_WHITE);
+  display.fillRect(0, cy+5, g>>1, 4, SSD1309_WHITE);
+  if (b) display.fillCircle(128-4, 3, 2, SSD1309_WHITE);
+  else display.drawCircle(128-4, 3, 2, SSD1309_WHITE);
 
   // 120 bpm indicator approx.
   if(bpm > 71){
@@ -291,6 +289,6 @@ void Ui::RunUITests(){
   }
   bpm++;
 
-  display->display();
+  display.display();
   strip.show();
 }
