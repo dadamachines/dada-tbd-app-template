@@ -7,9 +7,9 @@ SpiAPI spi_api;
 
 #define STM32RESET_PIN 40
 
-#define RP_CLK_GPIO 2
-#define RP_CMD_GPIO 3
-#define RP_DAT0_GPIO 4
+#define SDIO_CLK_GPIO 2
+#define SDIO_CMD_GPIO 3
+#define SDIO_DAT0_GPIO 4
 
 void Ui::Init(){
     // reset stm
@@ -40,7 +40,7 @@ void Ui::Init(){
     strip.setBrightness(10);
 
     // sd-card
-    sdInitialized = SD.begin(RP_CLK_GPIO, RP_CMD_GPIO, RP_DAT0_GPIO);
+    sdInitialized = SD.begin(SDIO_CLK_GPIO, SDIO_CMD_GPIO, SDIO_DAT0_GPIO);
 }
 
 void Ui::displayString(const std::string &s){
