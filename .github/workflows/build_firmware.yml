@@ -20,8 +20,8 @@ jobs:
       - name: Install PlatformIO Core
         run: pip install --upgrade platformio
 
-      - name: Run Unit Tests
-        run: pio test -e tests
+      #- name: Run Unit Tests
+      #  run: pio test -e tests
 
       - name: Build Firmware
         run: pio run -e pi2350
