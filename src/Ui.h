@@ -25,13 +25,20 @@
 
 class Ui {
     typedef struct{
+        // endless pots with push buttons
         uint16_t pot_adc_values[8]; // raw adc values
+        // absolute positions of the pots, 0..1023
         uint16_t pot_positions[4]; // absolute position 0..1023
+        // pot states, BIT0: fwd, BIT1: bwd, BIT2: fast (not implemented)
         uint8_t pot_states[4]; // BIT0: fwd, BIT1: bwd, BIT2: fast
-        uint16_t d_btns; // BIT0-15: D1-D16
+        // step sequencer buttons
+        uint16_t d_btns; // BIT0-15: D1-D16, buttons e.g. for step sequencer
         uint16_t d_btns_long_press; // BIT0-15: D1-D16
+        // function buttons
         uint8_t f_btns; // BIT0: F1, BIT1: F2, BIT2: F3, BIT3: F4, BIT4: F5
         uint8_t f_btns_long_press; // BIT0: F1, BIT1: F2, BIT2: F3, BIT3: F4, BIT4: F5
+        // system control buttons
+        // 0: rec, 1: play, 2: stop, 3: page up, 4: page down, 5: up cursor, 6: left cursor, 7: down cursor, 8: right cursor, 9: endless pot 1 (leftmost), 10: endless pot 2, 11: endless pot 3, 12: endless pot 4 (rightmost)
         uint16_t mcl_btns; // BIT0: MCL1, BIT1: MCL2, BIT2: MCL3, BIT3: MCL4, BIT4: MCL5, BIT5: MCL6, BIT6: MCL7, BIT7: MCL8, BIT8: MCL9, BIT9: MCL10, BIT10: MCL11, BIT11: MCL12
         uint16_t mcl_btns_long_press; // BIT0: MCL1, BIT1: MCL2, BIT2: MCL3, BIT3: MCL4, BIT4: MCL5, BIT5: MCL6, BIT6: MCL7, BIT7: MCL8, BIT8: MCL9, BIT9: MCL10, BIT10: MCL11, BIT11: MCL12
         uint32_t systicks; // timestamp
