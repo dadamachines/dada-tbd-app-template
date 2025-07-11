@@ -177,6 +177,7 @@ void Ui::RunUITests(){
   unsigned long delta = millis() - tick;
   tick = millis();
   static uint32_t bpm = 0;
+  static uint8_t tickLED = 0;
 
   ui_data_t ui_data_current = ui_data; // copy current ui data
   // start background DMA ui_data update
@@ -205,7 +206,8 @@ void Ui::RunUITests(){
       strip.setPixelColor(rgb_led_btn_map[i], strip.Color(0, 255, 0));
     }else{
       buf[i] = '0';
-      strip.setPixelColor(rgb_led_btn_map[i], strip.Color(64, 64, 64));
+      if (i % 4 == 0) strip.setPixelColor(rgb_led_btn_map[i], strip.Color(0, 200, 0));
+      else strip.setPixelColor(rgb_led_btn_map[i], strip.Color(64, 64, 64));
     }
     if(ui_data_current.d_btns_long_press & (1 << i)){
       buf[i] = 'L';
@@ -298,12 +300,14 @@ void Ui::RunUITests(){
   if (b) display.fillCircle(128-4, 3, 2, SSD1309_WHITE);
   else display.drawCircle(128-4, 3, 2, SSD1309_WHITE);
 
-
-  // 120 bpm indicator approx.
-  if(bpm > 71){
-    strip.setPixelColor(rgb_led_mcl, strip.Color(255, 255, 255));
-    bpm = 0;
+  // bpm indicator approx.
+  if (bpm % 20 == 0) {
+    tickLED = (tickLED + 1) % 16; // cycle through the LEDs
   }
+  if (bpm % 80 == 60) {
+    strip.setPixelColor(rgb_led_mcl, strip.Color(255, 255, 255));
+  }
+  strip.setPixelColor(rgb_led_btn_map[tickLED], strip.Color(255, 0, 0)); // blink the current tick LED
   bpm++;
 
   display.display();
