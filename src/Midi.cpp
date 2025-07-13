@@ -145,6 +145,9 @@ void Midi::Init(){
     digitalWrite(USBA_SEL_GPIO, true); // select USB A port
 
     // UARTS
+    // uart0 = Serial1 = TBD IN/OUT2
+    // the mapping uart0 = Serial1 and uart1 = Serial2 is fixed in Arduino
+    // https://arduino-pico.readthedocs.io/en/latest/serial.html
     Serial1.setTX(44); // set TX pin for first UART
     Serial1.setRX(45); // set RX pin for first UART
     Serial1.begin(31250); // MIDI baud rate
@@ -154,6 +157,7 @@ void Midi::Init(){
 
 
     // SPI data init
+    // uart1 = Serial2 = TBD IN/OUT1
     spi_trans[0].out_buf[0] = 0xCA; // fingerprint
     spi_trans[0].out_buf[1] = 0xFE; // fingerprint
     spi_trans[1].out_buf[0] = 0xCA; // fingerprint
