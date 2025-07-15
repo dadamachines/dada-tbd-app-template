@@ -6,7 +6,7 @@ extern "C" {
 #include "Ui.h"
 
 Midi midi; // MIDI handling
-Ui ui; // UI handling
+Ui tbd_ui; // UI handling
 
 // this if for debug printfs, uses SDA pin on side TBD connector, GPIO20, PIO uart
 //SerialPIO transmitter( 20, SerialPIO::NOPIN );
@@ -19,7 +19,7 @@ void setup(){
 }
 
 void setup1(){
-    ui.Init(); // Initialize UI handling
+    tbd_ui.Init(); // Initialize UI handling
 }
 
 void loop(){
@@ -29,7 +29,7 @@ void loop(){
 }
 
 void loop1(){
-    ui.SetLedStatus(midi.GetLedStatus());
-    ui.SetP4Ready(midi.GetP4AliveStatus());
-    ui.Update(); // Update UI handling
+    tbd_ui.SetLedStatus(midi.GetLedStatus());
+    tbd_ui.SetP4Ready(midi.GetP4AliveStatus());
+    tbd_ui.Update(); // Update UI handling
 }

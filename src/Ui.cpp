@@ -1,7 +1,6 @@
 #include "Ui.h"
 #include "SpiAPI.h"
 #include "DadaLogo.h"
-#include <SD.h>
 
 SpiAPI spi_api;
 
@@ -12,6 +11,12 @@ SpiAPI spi_api;
 #define SDIO_DAT0_GPIO 4
 
 void Ui::Init(){
+    InitHardware();
+    InitDisplay();
+    InitLeds();
+}
+
+void Ui::InitHardware() {
     // reset stm
     pinMode(STM32RESET_PIN, OUTPUT);
     digitalWrite(STM32RESET_PIN, false);
@@ -27,20 +32,21 @@ void Ui::Init(){
     Wire1.setClock(400000);
     //Wire1.onFinishedAsync(i2c_async_done);
     Wire1.begin();
+}
 
+void Ui::InitDisplay() {
     // display init
     display.begin(0, true);
     display.setRotation(0);
     display.clearDisplay();
     display.display();
+}
 
+void Ui::InitLeds() {
     // NeoPixel init
     strip.begin(); // INITIALIZE NeoPixel strip object (REQUIRED)
     strip.show(); // Turn OFF all pixels ASAP
     strip.setBrightness(10);
-
-    // sd-card
-    sdInitialized = SD.begin(SDIO_CLK_GPIO, SDIO_CMD_GPIO, SDIO_DAT0_GPIO);
 }
 
 void Ui::displayString(const std::string &s){
@@ -61,6 +67,28 @@ void Ui::displayStringWait1s(const std::string &s){
   display.display();
   delay(1000);
 }
+
+void Ui::Poll(){
+  static unsigned long lastTime = 0;
+  unsigned long currentTime = millis();
+  if (currentTime - lastTime < 10) return; // update every 10ms
+  lastTime = currentTime;
+  if (!p4Ready){
+    // assert reset for stm32
+    digitalWrite(STM32RESET_PIN, false);
+    resetRequested = true;
+    delay(100);
+    return;
+  }
+  // de-assert stm reset
+  if (resetRequested){
+    resetRequested = false;
+    digitalWrite(STM32RESET_PIN, true);
+    delay(1000);
+  }
+  UpdateUIInputsBlocking();
+}
+
 
 void Ui::Update(){
   static unsigned long lastTime = 0;
@@ -164,8 +192,17 @@ void Ui::RunSpiAPITests(){
   spi_api.Reboot();
 
 }
+bool Ui::UpdateUIInputs(){
+  // get data from stm
+  if (Wire1.finishedAsync()) {
+    Wire1.readAsync(I2C_SLAVE_ADDR, &ui_data, sizeof(ui_data_t), true);
+    return true;
+  }
+  return false;
+}
 
-void Ui::updateUIInputs(){
+
+void Ui::UpdateUIInputsBlocking(){
   // get data from stm
   while(!Wire1.finishedAsync());
   Wire1.readAsync(I2C_SLAVE_ADDR, &ui_data, sizeof(ui_data_t), true);
@@ -179,9 +216,9 @@ void Ui::RunUITests(){
   static uint32_t bpm = 0;
   static uint8_t tickLED = 0;
 
-  ui_data_t ui_data_current = ui_data; // copy current ui data
+  ui_data_t ui_data_current = CopyUiData(); // copy current ui data
   // start background DMA ui_data update
-  updateUIInputs();
+  UpdateUIInputsBlocking();
 
   char buf[64];
 
@@ -284,14 +321,6 @@ void Ui::RunUITests(){
 
 
   display.printf("FPS %dHz ", 1000 / delta);
-
-  // sd card status
-  if (sdInitialized){
-    display.printf("SD TYPE %d", SD.type());
-  }else{
-    display.printf("NO SD");
-  }
-  display.printf("\n");
 
   // in level bar
   uint16_t cy = display.getCursorY();
