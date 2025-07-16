@@ -1,6 +1,7 @@
 #include "Ui.h"
 #include "SpiAPI.h"
 #include "DadaLogo.h"
+#include <SD.h>
 
 SpiAPI spi_api;
 
@@ -14,6 +15,8 @@ void Ui::Init(){
     InitHardware();
     InitDisplay();
     InitLeds();
+    // uncomment for an example how to load and map DrumRack for control
+    // LoadDrumRackAndMapNoteOnsExample();
 }
 
 void Ui::InitHardware() {
@@ -47,6 +50,12 @@ void Ui::InitLeds() {
     strip.begin(); // INITIALIZE NeoPixel strip object (REQUIRED)
     strip.show(); // Turn OFF all pixels ASAP
     strip.setBrightness(10);
+}
+
+void Ui::InitSDCard(){
+  // sd-card with SDIO
+  // https://arduino-pico.readthedocs.io/en/latest/fs.html#enabling-sdio-operation-for-sd
+  sdInitialized = SD.begin(SDIO_CLK_GPIO, SDIO_CMD_GPIO, SDIO_DAT0_GPIO);
 }
 
 void Ui::displayString(const std::string &s){
@@ -208,6 +217,49 @@ void Ui::UpdateUIInputsBlocking(){
   Wire1.readAsync(I2C_SLAVE_ADDR, &ui_data, sizeof(ui_data_t), true);
 }
 
+void Ui::LoadDrumRackAndMapNoteOnsExample(){
+  std::string res;
+  // load drum rack plugin
+  displayStringWait1s("Load DrumRack");
+  spi_api.SetActivePlugin(0, "DrumRack");
+
+  // show all available plugin parameters, they come as json from the api
+  /*
+  spi_api.GetActivePluginParams(0, res);
+  res = "DrumRack params: " + res;
+  displayStringWait1s(res);
+  */
+
+  // show capabilities of the TBD, those are the strings for all possible mappings
+  // ch10 midi, which is the drum channel, has on position 16 of the boolean mapping options A_75_P_C1 which corresponds to the note C1 on ch 10
+  // refer to the current midi implementation here: https://docs.google.com/document/d/1nE06D81PKwmRPWvzO2XH71YJTlkTrWKaK04dhERxskg/edit?tab=t.0
+  /*
+  spi_api.GetIOCapabilities(res);
+  res = "IO Caps: " + res;
+  displayStringWait1s(res);
+  */
+
+  // set automation for boolean params of plugin here triggers, map all instruments of DrumRack from note C1 on ch10 onwards
+  // this mapps all instruments of the DrumRack to the note on events of the drum channel 10 starting C1 Ableton nomenclature, which is C0 Elektron Octatrack
+  // you should be able to trigger these sounds now from your connected midi controller, if you don't hear anything,
+  // maybe your DrumRack default patch still has some mappings, which prevent sound trigger e.g. mutes on, check that in the web editor
+  spi_api.SetActivePluginTrig(0, "ab_trigger", 16); // analog bass drum -> A_75_P_C1
+  spi_api.SetActivePluginTrig(0, "db_trigger", 17); // digital bass drum -> A_76_P_C#1
+  spi_api.SetActivePluginTrig(0, "fmb_trigger", 18); // fm bass drum -> A_77_P_D1
+  spi_api.SetActivePluginTrig(0, "as_trigger", 19); // analog snare drum -> A_78_P_D#1
+  spi_api.SetActivePluginTrig(0, "ds_trigger", 20); // digital snare drum -> B_75_P_E1
+  spi_api.SetActivePluginTrig(0, "hh1_trigger", 21); // hihat 1 -> B_76_P_F1
+  spi_api.SetActivePluginTrig(0, "hh2_trigger", 22); // hihat 2 -> B_77_P_F#1
+  spi_api.SetActivePluginTrig(0, "rs_trigger", 23); // rimshot -> B_78_P_G1
+  spi_api.SetActivePluginTrig(0, "cl_trigger", 24); // clap -> C_75_P_G#1
+  spi_api.SetActivePluginTrig(0, "s1_gate", 25); // rompler 1 -> C_76_P_A1
+  spi_api.SetActivePluginTrig(0, "s2_gate", 26); // rompler 2 -> C_77_P_A#1
+  spi_api.SetActivePluginTrig(0, "s3_gate", 27); // rompler 3 -> C_78_P_B1
+  spi_api.SetActivePluginTrig(0, "s3_gate", 28); // rompler 4 -> D_75_P_C2
+  // map a CV, again refer to the io capilities data and the midi implementation document
+  spi_api.SetActivePluginCV(0, "ab_decay", 8); // analog bass drum decay to ch 10 mod wheel -> A_P_MW_1
+}
+
 
 void Ui::RunUITests(){
   static unsigned long tick = 0;
@@ -319,8 +371,11 @@ void Ui::RunUITests(){
   buf[13] = 0;
   display.printf("%s\n", buf);
 
-
-  display.printf("FPS %dHz ", 1000 / delta);
+  if (sdInitialized){
+    display.printf("FPS %dHz SD OK\n", 1000 / delta);
+  }else{
+    display.printf("FPS %dHz NO SD\n", 1000 / delta);
+  }
 
   // in level bar
   uint16_t cy = display.getCursorY();
