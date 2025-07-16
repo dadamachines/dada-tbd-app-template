@@ -53,6 +53,7 @@ bool SpiAPI::transmitData(const std::string &data, const RequestType_t reqType){
         len -= bytes_to_send;
         bytes_sent += bytes_to_send;
         SPI.begin(true); // hw CS assertion
+        delay(100);
         SPI.beginTransaction(spiSettings);
         SPI.transfer(out_buf, in_buf, 2048);
         SPI.endTransaction();
@@ -73,6 +74,7 @@ bool SpiAPI::transmitData(const std::string &data, const RequestType_t reqType){
 
 bool SpiAPI::receiveData(std::string& response, const RequestType_t request){
     SPI.begin(true);
+    delay(100);
     SPI.beginTransaction(spiSettings);
     SPI.transfer(out_buf, in_buf, 2048);
     SPI.endTransaction();
@@ -102,6 +104,7 @@ bool SpiAPI::receiveData(std::string& response, const RequestType_t request){
 
     while (bytes_to_be_received > 0){
         SPI.begin(true);
+        delay(100);
         SPI.beginTransaction(spiSettings);
         SPI.transfer(out_buf, in_buf, 2048);
         SPI.endTransaction();
@@ -202,6 +205,7 @@ bool SpiAPI::SavePreset(const uint8_t channel, const std::string & presetName, c
 
 void SpiAPI::send(){
     SPI.begin(true);
+    delay(100);
     SPI.beginTransaction(spiSettings);
     SPI.transfer(out_buf, in_buf, 2048);
     SPI.endTransaction();
