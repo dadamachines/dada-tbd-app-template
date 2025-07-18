@@ -34,6 +34,9 @@
   - USB host requires to manually enable the power and USB multiplexer via GPIOs, see Midi::Init() for details
 - UART MIDI is used to connect external MIDI devices, such as MIDI keyboards, controllers, etc.
 
+### Architecture / Pinout
+[Pinmap](pinmap.md)
+
 ## How to build this project
 ### Use platformio!
 - Install platformio
