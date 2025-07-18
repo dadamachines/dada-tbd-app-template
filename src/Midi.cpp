@@ -121,9 +121,11 @@ void tuh_midi_rx_cb(uint8_t dev_addr, uint32_t num_packets){
 
 void Midi::Init(){
     // WS sync to codec
-    pinMode(WS_PIN, INPUT_PULLDOWN); // Configure button pin with pull-up resistor
-    pinMode(LED_GREEN, OUTPUT);
+    pinMode(WS_PIN, INPUT_PULLDOWN); // Configure button pin with pull-down resistor
     attachInterrupt(digitalPinToInterrupt(WS_PIN), ws_sync_cb, FALLING);
+
+    // indicator LED
+    pinMode(LED_GREEN, OUTPUT);
 
     // reset sync counter
     ws_sync_counter = 0;
@@ -144,13 +146,14 @@ void Midi::Init(){
     digitalWrite(USBA_PWR_ENA_GPIO, true); // enable USB power
     digitalWrite(USBA_SEL_GPIO, true); // select USB A port
 
-    // UARTS
-    // uart0 = Serial1 = TBD IN/OUT2
+    // UARTS / MIDI
     // the mapping uart0 = Serial1 and uart1 = Serial2 is fixed in Arduino
     // https://arduino-pico.readthedocs.io/en/latest/serial.html
+    // uart0 = Serial1 = TBD MIDI IN/OUT2
     Serial1.setTX(44); // set TX pin for first UART
     Serial1.setRX(45); // set RX pin for first UART
     Serial1.begin(31250); // MIDI baud rate
+    // uart1 = Serial2 = TBD MIDI IN/OUT1
     Serial2.setTX(36); // set TX pin for second UART
     Serial2.setRX(37); // set RX pin for second UART
     Serial2.begin(31250); // MIDI baud rate for second UART
