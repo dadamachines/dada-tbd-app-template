@@ -3,7 +3,6 @@
 #include "MidiRunningStatusExpander.h"
 #include <SerialPIO.h>
 
-
 static MidiParser midiparser; // MIDI handling
 static MidiRunningStatusExpander midi_exp_uart0; // MIDI running status expander
 static MidiRunningStatusExpander midi_exp_uart1; // MIDI running status expander
@@ -11,14 +10,8 @@ static MidiRunningStatusExpander midi_exp_uart1; // MIDI running status expander
 #define USBA_PWR_ENA_GPIO 10
 #define USBA_SEL_GPIO 11
 
-#include <SPI.h>
-#define SPI1_SPEED 30000000 // 62.5 MHz rp2350-> p4, 30MHz p4->rp2350 empirical max.
-#define SPI1_SCLK 30
-#define SPI1_MOSI 31
-#define SPI1_MISO 28
-#define SPI1_CS 29
-//#define SPI_BUFFER_LEN 64
-#define SPI_BUFFER_LEN 1024
+// real-time SPI data transfer buffer size
+#define SPI_BUFFER_LEN 2048
 
 // sync codec 44100Hz
 #define WS_PIN 27
@@ -27,7 +20,6 @@ static MidiRunningStatusExpander midi_exp_uart1; // MIDI running status expander
 
 static bool led_state = false;
 
-static SPISettings spiSettings(SPI1_SPEED, MSBFIRST, SPI_MODE3);
 
 // transfer structure is
 // byte 0, 1 -> 0xCA 0xFE (fingerprint)
@@ -160,6 +152,7 @@ void Midi::Init(){
 
 
     // SPI data init
+    // use double buffering
     // uart1 = Serial2 = TBD IN/OUT1
     spi_trans[0].out_buf[0] = 0xCA; // fingerprint
     spi_trans[0].out_buf[1] = 0xFE; // fingerprint
@@ -167,11 +160,6 @@ void Midi::Init(){
     spi_trans[1].out_buf[1] = 0xFE; // fingerprint
     current_trans = 0;
 
-    // real-time SPI uplink to P4
-    SPI1.setMISO(SPI1_MISO);
-    SPI1.setMOSI(SPI1_MOSI);
-    SPI1.setCS(SPI1_CS);
-    SPI1.setSCK(SPI1_SCLK);
 }
 
 void Midi::Update(){
@@ -211,19 +199,22 @@ void Midi::Update(){
     }
 
     // prepare real-time SPI transfer
-    if (ws_sync_counter > 0){
+    if (ws_sync_counter > 0){ // 725,62us have passed -> 44100Hz / 32 = 1378,125Hz
         // get time of last ws sync to detect if p4 is alive
         time = millis();
-        // is 44100Hz / 32 = 1378,125Hz or 725,62us
-        if (SPI1.finishedAsync()){
-            SPI1.endTransaction();
-            SPI1.end();
-        }
-        SPI1.begin(true); // hw CS assertion
-        SPI1.beginTransaction(spiSettings);
-        SPI1.transferAsync(spi_trans[current_trans].out_buf, spi_trans[current_trans].in_buf, SPI_BUFFER_LEN);
+
+        // check if previous real-time control DMA is done
+        real_time_spi.WaitUntilDMADoneBlocking();
+
+        // schedule next DMA transfer
+        // tested with 2048 bytes, spi operating at 30MHz
+        // max. is about 32/44100 * 30000000 / 8 = 2721 bytes
+        // data rate with 2048 bytes approx. 44100/32 * 2048 / 1024 / 1024 = 2.7 MB/s
+        real_time_spi.StartDMA(spi_trans[current_trans].out_buf, spi_trans[current_trans].in_buf, SPI_BUFFER_LEN);
+
         // swap buffers
         current_trans ^= 0x1;
+
         // get forwarded data from p4 usb device in, send through regular spi transaction
         if (spi_trans[current_trans].in_buf[0] == 0xCA && spi_trans[current_trans].in_buf[1] == 0xFE){
             // fingerprint matches, we have a valid transfer
