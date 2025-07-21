@@ -15,6 +15,7 @@ void Ui::Init(){
     InitHardware();
     InitDisplay();
     InitLeds();
+    InitSDCard();
     // uncomment for an example how to load and map DrumRack for control
     // LoadDrumRackAndMapNoteOnsExample();
 }
