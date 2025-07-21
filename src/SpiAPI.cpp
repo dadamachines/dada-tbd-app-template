@@ -1,19 +1,6 @@
 #include "SpiAPI.h"
-// ***************/
-// Note that the delays are important for the TBD to have enough time to process the SPI requests.
-// The SPI bus is used to communicate with the P4 RP2350 for REST API requests and responses.
-// ***************/
-
-
-#include <SPI.h>
-// defines for spi0, RP2350 SPI stream to P4 for rest-api
-#define SPI_SPEED 30000000 // 30MHz seems to still work for receiving from p4, sending works up to 62.5MHz
-#define SPI_SCLK 34
-#define SPI_MOSI 35
-#define SPI_MISO 32
-#define SPI_CS 33
-
-static SPISettings spiSettings(SPI_SPEED, MSBFIRST, SPI_MODE3);
+#include <cstring>
+#include <Arduino.h>
 
 static uint8_t out_buf[2048], in_buf[2048];
 // params
@@ -23,17 +10,9 @@ uint8_t * const uint8_param_1 = &out_buf[4];; // second request parameter, e.g. 
 int32_t * const int32_param_2 = (int32_t*)&out_buf[5]; // third request parameter, e.g. value, ...
 uint8_t* const string_param_3 = (uint8_t*)&out_buf[9]; // fourth request parameter, e.g. plugin name, parameter name, ...
 
-
 void SpiAPI::Init(){
-    // p4 rp2350 SpiAPI stream init
-    SPI.setMISO(SPI_MISO);
-    SPI.setMOSI(SPI_MOSI);
-    SPI.setCS(SPI_CS);
-    SPI.setSCK(SPI_SCLK);
-
     out_buf[0] = 0xCA;
     out_buf[1] = 0xFE; // fingerprint
-    delay(100); // wait for the SPI bus to stabilize
 }
 
 bool SpiAPI::transmitData(const std::string &data, const RequestType_t reqType){
@@ -52,12 +31,8 @@ bool SpiAPI::transmitData(const std::string &data, const RequestType_t reqType){
         memcpy(out_buf + 7, ptr_cstring_section, bytes_to_send);
         len -= bytes_to_send;
         bytes_sent += bytes_to_send;
-        SPI.begin(true); // hw CS assertion
-        delay(100);
-        SPI.beginTransaction(spiSettings);
-        SPI.transfer(out_buf, in_buf, 2048);
-        SPI.endTransaction();
-        SPI.end();
+        cmd_api_spi.TransferBlockingDelayed(out_buf, in_buf, 2048);
+
         // fingerprint check
         if (in_buf[0] != 0xCA || in_buf[1] != 0xFE){
             return false;
@@ -67,19 +42,12 @@ bool SpiAPI::transmitData(const std::string &data, const RequestType_t reqType){
         if (requestType != reqType){
             return false;
         }
-        delay(50);
     }
     return true;
 }
 
 bool SpiAPI::receiveData(std::string& response, const RequestType_t request){
-    SPI.begin(true);
-    delay(100);
-    SPI.beginTransaction(spiSettings);
-    SPI.transfer(out_buf, in_buf, 2048);
-    SPI.endTransaction();
-    SPI.end();
-    delay(50);
+    cmd_api_spi.TransferBlockingDelayed(out_buf, in_buf, 2048);
 
     // fingerprint check
     if (in_buf[0] != 0xCA || in_buf[1] != 0xFE){
@@ -103,13 +71,7 @@ bool SpiAPI::receiveData(std::string& response, const RequestType_t request){
     response.append((char*)&in_buf[7], bytes_received); // skip the first 7 bytes (fingerprint and length)
 
     while (bytes_to_be_received > 0){
-        SPI.begin(true);
-        delay(100);
-        SPI.beginTransaction(spiSettings);
-        SPI.transfer(out_buf, in_buf, 2048);
-        SPI.endTransaction();
-        SPI.end();
-        delay(50);
+        cmd_api_spi.TransferBlockingDelayed(out_buf, in_buf, 2048);
 
         // fingerprint check
         if (in_buf[0] != 0xCA || in_buf[1] != 0xFE){
@@ -204,13 +166,7 @@ bool SpiAPI::SavePreset(const uint8_t channel, const std::string & presetName, c
 
 
 void SpiAPI::send(){
-    SPI.begin(true);
-    delay(100);
-    SPI.beginTransaction(spiSettings);
-    SPI.transfer(out_buf, in_buf, 2048);
-    SPI.endTransaction();
-    SPI.end();
-    delay(100);
+    cmd_api_spi.TransferBlockingDelayed(out_buf, in_buf, 2048);
 }
 
 bool SpiAPI::SetPresetData(const std::string& pluginID, const std::string& data){

@@ -2,6 +2,7 @@
 
 #include <string>
 #include <cstdint>
+#include "DaDa_SPI.h"
 
 typedef enum{
     GetPlugins = 0x01, // returns json cstring with all plugins
@@ -32,6 +33,7 @@ class SpiAPI{
     bool receiveData(std::string& response, RequestType_t requestType);
     bool transmitData(const std::string &data, const RequestType_t reqType);
     void send();
+    DaDa_SPI cmd_api_spi {spi0, 33, 35, 32, 34, 30000000};
 
 public:
     void Init();
