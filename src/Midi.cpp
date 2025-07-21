@@ -11,7 +11,12 @@ static MidiRunningStatusExpander midi_exp_uart1; // MIDI running status expander
 #define USBA_SEL_GPIO 11
 
 // real-time SPI data transfer buffer size
-#define SPI_BUFFER_LEN 2048
+// tested with 2048 bytes, spi operating at 30MHz
+// max. is about 32/44100 * 30000000 / 8 = 2721 bytes
+// data rate with 2048 bytes approx. 44100/32 * 2048 / 1024 / 1024 = 2.7 MB/s
+// 1024 seems to be a safe margin for a transfer to be completed in time
+// this value must correspond to the SPI_BUFFER_LEN in the P4 firmware (rp2350_spi_stream.cpp)
+#define SPI_BUFFER_LEN 1024
 
 // sync codec 44100Hz
 #define WS_PIN 27
@@ -207,9 +212,6 @@ void Midi::Update(){
         real_time_spi.WaitUntilDMADoneBlocking();
 
         // schedule next DMA transfer
-        // tested with 2048 bytes, spi operating at 30MHz
-        // max. is about 32/44100 * 30000000 / 8 = 2721 bytes
-        // data rate with 2048 bytes approx. 44100/32 * 2048 / 1024 / 1024 = 2.7 MB/s
         real_time_spi.StartDMA(spi_trans[current_trans].out_buf, spi_trans[current_trans].in_buf, SPI_BUFFER_LEN);
 
         // swap buffers
