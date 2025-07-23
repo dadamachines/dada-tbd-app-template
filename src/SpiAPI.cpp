@@ -10,6 +10,7 @@ uint8_t * const uint8_param_1 = &out_buf[4];; // second request parameter, e.g. 
 int32_t * const int32_param_2 = (int32_t*)&out_buf[5]; // third request parameter, e.g. value, ...
 uint8_t* const string_param_3 = (uint8_t*)&out_buf[9]; // fourth request parameter, e.g. plugin name, parameter name, ...
 
+
 void SpiAPI::Init(){
     out_buf[0] = 0xCA;
     out_buf[1] = 0xFE; // fingerprint
@@ -88,7 +89,7 @@ bool SpiAPI::receiveData(std::string& response, const RequestType_t request){
 
         // append the received data to the json string
         bytes_received = *resLength > 2048 - 7 ? 2048 - 7 : *resLength; // 7 bytes for fingerprint and length
-        response.append((char*)&in_buf[3], bytes_received);
+        response.append((char*)&in_buf[7], bytes_received);
         bytes_to_be_received -= bytes_received;
     }
     if (response.size() != totalResponseLength){

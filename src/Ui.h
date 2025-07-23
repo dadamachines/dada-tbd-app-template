@@ -2,6 +2,9 @@
 
 #include <atomic>
 #include <string>
+#include <ArduinoJson.h>
+#include <Midi.h>
+
 // defines for the CTAG TBD UI board with STM
 #include <Wire.h>
 #define I2C_SLAVE_ADDR 0x42
@@ -45,6 +48,7 @@ typedef struct{
 } ui_data_t;
 
 class Ui{
+    Midi &midi;
     ui_data_t ui_data;
     uint32_t current_ui_data = 0; // current ui data index
     SoftwareSPI softSPI{SoftwareSPI(OLED_SCLK, OLED_DC, OLED_MOSI)};
@@ -64,6 +68,7 @@ class Ui{
     void displayStringWait1s(const std::string& s);
 
 public:
+    Ui(Midi &midi) : midi{midi} {}
     void Init();
     void InitHardware();
     void InitDisplay();
@@ -73,17 +78,14 @@ public:
     void Update();
     bool UpdateUIInputs();
     void UpdateUIInputsBlocking();
+
+    // examples
     void LoadDrumRackAndMapNoteOnsExample();
+    void RealTimeCVTrigAPIExample();
+
+    // tests
     void RunUITests();
     void RunSpiAPITests();
-
-    void SetLedStatus(uint32_t led){
-        ledStatus = led;
-    }
-
-    void SetP4Ready(bool ready){
-        p4Ready = ready;
-    }
 
     ui_data_t CopyUiData(){
         return ui_data;

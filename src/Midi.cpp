@@ -48,7 +48,6 @@ static tusb_desc_device_t desc_device;
 // holding the device address of the MIDI device
 static uint8_t midi_dev_addr = 0;
 
-
 #include <atomic>
 std::atomic<uint32_t> ws_sync_counter{0}; // counter for word clock sync
 
@@ -165,6 +164,9 @@ void Midi::Init(){
     spi_trans[1].out_buf[1] = 0xFE; // fingerprint
     current_trans = 0;
 
+    // init real-time state buffer
+    memset(real_time_state_buffer, 0, N_CVS_TBD * 4 + N_TRIGS_TBD); // clear the buffer
+    mutex_init(&real_time_mutex); // initialize the mutex for real-time state buffer
 }
 
 void Midi::Update(){
@@ -233,9 +235,44 @@ void Midi::Update(){
                 Serial2.write(midi_data, *midi_len); // from p4 usb device midi in
             }
         }
-        // if we have a word clock sync /32 = one block size, then we can update the MIDI parser
-        midiparser.Update(spi_trans[current_trans].out_buf + 2); // skip fingerprint bytes
+        // check if we should use legacy midi parser
+        if (!bypassLegacyMidiParser){
+            // if we have a word clock sync /32 = one block size, then we can update the MIDI parser
+            // replace the midi parser for your own implementation if you want to use a different MIDI parser or none at all!
+            midiparser.Update(spi_trans[current_trans].out_buf + 2); // skip fingerprint bytes
+            // ATTENTION:
+            // old midiparser works with N_CV CVs and N_TRIG TRIGs, TBD fw expects as defined in Midi.h N_CVS_TBD CVs and N_TRIG_TBD TRIGs, so we have to rearrange the data for the transmission
+            // move the TRIGs to the correct location of the buffer after the CVs from the old midi parser
+            memcpy(&spi_trans[current_trans].out_buf[2 + N_CVS_TBD * 4], &spi_trans[current_trans].out_buf[2 + N_CVS * 4], N_TRIGS);
+            // set new CVs to zeros, HERE YOU COULD ADD YOUR OWN CONTROLS
+            // offset in outbuf for 240 CVs is 2 (for fingerprint)
+            // offset in outbuf for 90 CVs is 2 (fingerprint) + 240 * 4 = 962
+            memset(&spi_trans[current_trans].out_buf[2 + N_CVS * 4], 0, (N_CVS_TBD - N_CVS) * 4); // set the rest of the CVs to zero, we only use 90 CVs from the old midi parser
+        }else{
+            // use real-time state buffer directly, bypass the legacy midi parser
+            if (!mutex_try_enter(&real_time_mutex, 0)) return; // try to enter the mutex, if it is not available, we skip this update
+            // copy the real-time state buffer to the SPI transfer buffer
+            memcpy(spi_trans[current_trans].out_buf + 2, real_time_state_buffer, N_CVS_TBD * 4 + N_TRIGS_TBD); // 2 bytes for fingerprint, N_CVS_TBD * 4 bytes for CVs, N_TRIGS_TBD bytes for TRIGs
+            real_time_state_buffer_consumed = 1; // set the real-time buffer state to consumed
+            mutex_exit(&real_time_mutex); // exit the mutex
+        }
 
         ws_sync_counter = 0; // reset the counter
     }
+}
+
+void Midi::SetBypassLegacyMidiParser(bool bypass){
+    bypassLegacyMidiParser = bypass;
+    midiparser.SetShouldQueue(!bypass); // if we bypass the legacy midi parser, we don't queue the data anymore
+}
+
+void Midi::SetRealTimeTrig(uint8_t index, uint8_t value){
+    if (index + N_CVS_TBD * 4 >= N_CVS_TBD * 4 + N_TRIGS_TBD) return; // check if index is valid
+    real_time_state_buffer[N_CVS_TBD * 4 + index] = value; // set the TRIG value at the index
+}
+
+void Midi::SetRealTimeCV(uint8_t index, float value){
+    if (index >= N_CVS_TBD) return; // check if index is valid
+    float *val = reinterpret_cast<float*>(&real_time_state_buffer[index * 4]);
+    *val = value; // set the CV value at the index
 }

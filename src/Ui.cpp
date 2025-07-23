@@ -2,6 +2,7 @@
 #include "SpiAPI.h"
 #include "DadaLogo.h"
 #include <SD.h>
+#include <map>
 
 SpiAPI spi_api;
 
@@ -18,6 +19,7 @@ void Ui::Init(){
     InitSDCard();
     // uncomment for an example how to load and map DrumRack for control
     // LoadDrumRackAndMapNoteOnsExample();
+    RealTimeCVTrigAPIExample();
 }
 
 void Ui::InitHardware(){
@@ -83,6 +85,7 @@ void Ui::Poll(){
     unsigned long currentTime = millis();
     if (currentTime - lastTime < 10) return; // update every 10ms
     lastTime = currentTime;
+    p4Ready = midi.GetP4AliveStatus();
     if (!p4Ready){
         // assert reset for stm32
         digitalWrite(STM32RESET_PIN, false);
@@ -105,6 +108,7 @@ void Ui::Update(){
     unsigned long currentTime = millis();
     if (currentTime - lastTime < 10) return; // update every 10ms
     lastTime = currentTime;
+    p4Ready = midi.GetP4AliveStatus();
     if (!p4Ready){
         //displayString("Waiting for P4...");
         display.clearDisplay();
@@ -262,6 +266,127 @@ void Ui::LoadDrumRackAndMapNoteOnsExample(){
     spi_api.SetActivePluginCV(0, "ab_decay", 8); // analog bass drum decay to ch 10 mod wheel -> A_P_MW_1
 }
 
+static void mapBoolAndIntParams(const uint8_t channel, JsonArray const &params, uint8_t &cv, uint8_t &trig, const uint8_t maxCV,
+    const uint8_t maxTRIG, std::map<std::string, uint8_t> &cvmap, std::map<std::string, uint8_t> &trigmap){
+    for (JsonObject const& param : params) {
+        const char* type = param["type"];
+        const char* id = param["id"];
+        const char* name = param["name"];
+        if (type && strcmp(type, "bool") == 0) {
+            trigmap[id] = trig;
+            spi_api.SetActivePluginTrig(channel, id, trig++);
+        }
+        if (type && strcmp(type, "int") == 0){
+            cvmap[id] = cv;
+            spi_api.SetActivePluginCV(channel, id, cv++);
+        }
+        if (type && strcmp(type, "group") == 0) {
+            // attention this is a recursive call!
+            mapBoolAndIntParams(channel , param["params"].as<JsonArray>(), cv, trig, maxCV, maxTRIG, cvmap, trigmap);
+        }
+    }
+}
+
+static std::string getParamNameById(JsonArray const& params, std::string const &id){
+    // iterate all params to find param with id
+    for (JsonObject const& param : params) {
+        if (param["id"] == id){
+            return param["name"].as<std::string>();
+        }
+        // check if this is a group and search in the group
+        if (param["type"] == "group"){
+            std::string res = getParamNameById(param["params"].as<JsonArray>(), id);
+            if (!res.empty()) return res;
+        }
+    }
+    return ""; // not found
+}
+
+void Ui::RealTimeCVTrigAPIExample(){
+    midi.SetBypassLegacyMidiParser(true); // disable legacy midi parser, we use direct real-time values in this example
+    displayString("Loading DrumRack, wait...");
+    // load drum rack plugin
+    displayStringWait1s("Load DrumRack");
+    spi_api.SetActivePlugin(0, "DrumRack");
+    displayString("Getting all params for plugin, wait...");
+    // get all available plugin parameters, they come as json from the api
+    std::string res;
+    spi_api.GetActivePluginParams(0, res);
+
+    // parse json response
+    JsonDocument doc;
+    DeserializationError error = deserializeJson(doc, res);
+    if (error){
+        displayStringWait1s("Error parsing json: " + std::string(error.c_str()));
+        return;
+    }
+
+    // we use two maps to map the parameter id to the cv and trig indices in the real-time state buffer
+    std::map<std::string, uint8_t> cv_map;
+    std::map<std::string, uint8_t> trig_map;
+    std::map<std::string, std::string> cv_map_names;
+
+    JsonArray params = doc["params"].as<JsonArray>();
+    std::string plugin_name = doc["name"].as<std::string>();
+    std::string pluging_hint = doc["hint"].as<std::string>();
+
+    // uncomment this to map all available parameters to cv and trig
+    /*
+    displayString("Mapping params, wait (takes time)...");
+    uint8_t cv = 0;
+    uint8_t trig = 0;
+    mapBoolAndIntParams(0, params, cv, trig, 240, 60, cv_map, trig_map);
+    */
+
+    // use this to map only the parameters we want to use in this example
+    displayString("Mapping params, wait...");
+    spi_api.SetActivePluginTrig(0, "ab_trigger", 0);
+    trig_map["ab_trigger"] = 0;
+    cv_map_names["ab_trigger"] = getParamNameById(params, "ab_trigger");
+    spi_api.SetActivePluginCV(0, "ab_f0", 0);
+    cv_map["ab_f0"] = 0;
+    cv_map_names["ab_f0"] = getParamNameById(params, "ab_f0");
+    spi_api.SetActivePluginCV(0, "ab_decay", 1);
+    cv_map["ab_decay"] = 1;
+    cv_map_names["ab_decay"] = getParamNameById(params, "ab_decay");
+
+    // trigger sounds
+    // note if you don't hear anything, maybe your DrumRack default patch still has some mappings, which prevent sound trigger e.g. mutes on, check that in the web editor
+    displayString("Triggering sounds forever...");
+    while (1){
+        // acquire real-time mutex blocking, this will block until the mutex is available
+        midi.AcquireRealTimeMutexBlocking();
+        // trigger sounds, we use the cv and trig maps to map the parameters to the real-time state buffer
+        // note on
+        midi.SetRealTimeTrig(trig_map["ab_trigger"], 1); // analog bass drum
+        midi.SetRealTimeCV(cv_map["ab_f0"], 0.2f); // analog bass drum tone
+        midi.SetRealTimeCV(cv_map["ab_decay"], 0.2f); // digital bass drum
+        midi.ReleaseRealTimeMutex();
+        displayString( plugin_name + "\n" + pluging_hint + "\n" + cv_map_names["ab_trigger"] + " on\n" + cv_map_names["ab_f0"] + ": 0.2\n" + cv_map_names["ab_decay"] + ": 0.2");
+        delay(500);
+        while (!midi.IsRealTimeBufferConsumed()); // wait until the real-time buffer is consumed
+        // note off
+        midi.AcquireRealTimeMutexBlocking();
+        midi.SetRealTimeTrig(trig_map["ab_trigger"], 0); // analog bass drum
+        midi.ReleaseRealTimeMutex();
+        while (!midi.IsRealTimeBufferConsumed()); // wait until the real-time buffer is consumed
+        // note on
+        midi.AcquireRealTimeMutexBlocking();
+        midi.SetRealTimeTrig(trig_map["ab_trigger"], 1); // analog bass drum
+        midi.SetRealTimeCV(cv_map["ab_f0"], 0.4f); // analog bass drum tone
+        midi.SetRealTimeCV(cv_map["ab_decay"], 0.5f); // digital bass drum
+        midi.ReleaseRealTimeMutex();
+        displayString( plugin_name + "\n" + pluging_hint + "\n" + cv_map_names["ab_trigger"] + " on\n" + cv_map_names["ab_f0"] + ": 0.4\n" + cv_map_names["ab_decay"] + ": 0.5");
+        delay(500);
+        while (!midi.IsRealTimeBufferConsumed()); // wait until the real-time buffer is consumed
+        // note off
+        midi.AcquireRealTimeMutexBlocking();
+        midi.SetRealTimeTrig(trig_map["ab_trigger"], 0); // analog bass drum
+        midi.ReleaseRealTimeMutex();
+        while (!midi.IsRealTimeBufferConsumed()); // wait until the real-time buffer is consumed
+    }
+}
+
 
 void Ui::RunUITests(){
     static unsigned long tick = 0;
@@ -335,6 +460,7 @@ void Ui::RunUITests(){
     if (ui_data_current.f_btns_long_press & (1 << 0))
         strip.setPixelColor(rgb_led_fbtn_map[2], strip.Color(255, 0, 0));
 
+    ledStatus = midi.GetLedStatus();
     uint8_t b = ledStatus & 0xff;
     uint8_t g = (ledStatus >> 8) & 0xff;
     uint8_t r = (ledStatus >> 16) & 0xff;

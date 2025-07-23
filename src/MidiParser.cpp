@@ -771,6 +771,7 @@ void MidiParser::Init() {
 
 // queue data for MIDI messages to be processed, returns the length of the queued data to identify if everything was queued
 uint32_t MidiParser::QueueData(uint8_t *data, uint32_t size) {
+    if (!shouldQueue) return 0; // If we are not supposed to queue, return 0
     if(missing_bytes_offset + len + size > (MIDI_BUF_SZ - 32)){
         return 0; // Not enough space in buffer, so we don't queue anything
     }

@@ -93,7 +93,10 @@ class MidiParser final
     uint8_t *ptr = nullptr;
     uint8_t current_status = 0;    // Current status byte to be remembered in case of a running-status situation
     uint8_t loc_msg[8];            // Local message to be constructed in a running-status situation
+    bool shouldQueue = true;
     public:
+
+        void SetShouldQueue(bool value) { shouldQueue = value; } // Setter for shouldQueue
 
         void Init();
 

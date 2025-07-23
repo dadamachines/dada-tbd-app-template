@@ -34,7 +34,6 @@ class SpiAPI{
     bool transmitData(const std::string &data, const RequestType_t reqType);
     void send();
     DaDa_SPI cmd_api_spi {spi0, 33, 35, 32, 34, 30000000};
-
 public:
     void Init();
     bool GetPlugins(std::string& response); // true on success, response contains JSON string of plugins
