@@ -19,7 +19,7 @@ void Ui::Init(){
     InitSDCard();
     // uncomment for an example how to load and map DrumRack for control
     // LoadDrumRackAndMapNoteOnsExample();
-    RealTimeCVTrigAPIExample();
+    // RealTimeCVTrigAPIExample();
 }
 
 void Ui::InitHardware(){

@@ -20,6 +20,7 @@
 - Rotary encoders and buttons are polled from STM32F0 uC via I2C
 
 ### Optional behaviour
+- Call RealTimeCVTrigAPIExample() to see how to use the SPI API to send real-time control data without legacy midi parser
 - Call LoadDrumRackAndMapNoteOnsExample() in Ui.cpp to load DrumRack plugin and map note-ons to it (refer to Ui::Init())
 - Call RunSpiAPITests() in Ui.cpp to get an idea of the SPI API to change the plugin state on the TBD sound processor (ESP32-P4) (refer to Ui::Update())
 
