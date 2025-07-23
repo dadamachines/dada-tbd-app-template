@@ -329,6 +329,7 @@ void Ui::RealTimeCVTrigAPIExample(){
     JsonArray params = doc["params"].as<JsonArray>();
     std::string plugin_name = doc["name"].as<std::string>();
     std::string pluging_hint = doc["hint"].as<std::string>();
+    std::string ab_drum_name = params[0]["name"].as<std::string>();
 
     // uncomment this to map all available parameters to cv and trig
     /*
@@ -352,7 +353,6 @@ void Ui::RealTimeCVTrigAPIExample(){
 
     // trigger sounds
     // note if you don't hear anything, maybe your DrumRack default patch still has some mappings, which prevent sound trigger e.g. mutes on, check that in the web editor
-    displayString("Triggering sounds forever...");
     while (1){
         // acquire real-time mutex blocking, this will block until the mutex is available
         midi.AcquireRealTimeMutexBlocking();
@@ -362,7 +362,7 @@ void Ui::RealTimeCVTrigAPIExample(){
         midi.SetRealTimeCV(cv_map["ab_f0"], 0.2f); // analog bass drum tone
         midi.SetRealTimeCV(cv_map["ab_decay"], 0.2f); // digital bass drum
         midi.ReleaseRealTimeMutex();
-        displayString( plugin_name + "\n" + pluging_hint + "\n" + cv_map_names["ab_trigger"] + " on\n" + cv_map_names["ab_f0"] + ": 0.2\n" + cv_map_names["ab_decay"] + ": 0.2");
+        displayString( plugin_name + "\n" + pluging_hint + "\n" + ab_drum_name + "\n" + cv_map_names["ab_trigger"] + " on\n" + cv_map_names["ab_f0"] + ": 0.2\n" + cv_map_names["ab_decay"] + ": 0.2");
         delay(500);
         while (!midi.IsRealTimeBufferConsumed()); // wait until the real-time buffer is consumed
         // note off
@@ -376,7 +376,7 @@ void Ui::RealTimeCVTrigAPIExample(){
         midi.SetRealTimeCV(cv_map["ab_f0"], 0.4f); // analog bass drum tone
         midi.SetRealTimeCV(cv_map["ab_decay"], 0.5f); // digital bass drum
         midi.ReleaseRealTimeMutex();
-        displayString( plugin_name + "\n" + pluging_hint + "\n" + cv_map_names["ab_trigger"] + " on\n" + cv_map_names["ab_f0"] + ": 0.4\n" + cv_map_names["ab_decay"] + ": 0.5");
+        displayString( plugin_name + "\n" + pluging_hint + "\n" + ab_drum_name + "\n" + cv_map_names["ab_trigger"] + " on\n" + cv_map_names["ab_f0"] + ": 0.4\n" + cv_map_names["ab_decay"] + ": 0.5");
         delay(500);
         while (!midi.IsRealTimeBufferConsumed()); // wait until the real-time buffer is consumed
         // note off
