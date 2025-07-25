@@ -304,9 +304,9 @@ static std::string getParamNameById(JsonArray const& params, std::string const &
 
 void Ui::RealTimeCVTrigAPIExample(){
     midi.SetBypassLegacyMidiParser(true); // disable legacy midi parser, we use direct real-time values in this example
-    displayString("Loading DrumRack, wait...");
+
     // load drum rack plugin
-    displayStringWait1s("Load DrumRack");
+    displayString("Load DrumRack");
     spi_api.SetActivePlugin(0, "DrumRack");
     displayString("Getting all params for plugin, wait...");
     // get all available plugin parameters, they come as json from the api
@@ -326,9 +326,12 @@ void Ui::RealTimeCVTrigAPIExample(){
     std::map<std::string, uint8_t> trig_map;
     std::map<std::string, std::string> cv_map_names;
 
+    // parse parameter json string
     JsonArray params = doc["params"].as<JsonArray>();
+    // get plugin name and hint, generic for a plugin
     std::string plugin_name = doc["name"].as<std::string>();
     std::string pluging_hint = doc["hint"].as<std::string>();
+    // get the name of the drum, this is a specific parameter for the DrumRack plugin
     std::string ab_drum_name = params[0]["name"].as<std::string>();
 
     // uncomment this to map all available parameters to cv and trig
@@ -340,6 +343,9 @@ void Ui::RealTimeCVTrigAPIExample(){
     */
 
     // use this to map only the parameters we want to use in this example
+    // CVs and TRIGs are mapped to the real-time state-buffer indices, which are 240 CVs and 60 TRIGs
+    // the state-buffer has linear indices for CVs and TRIGs, so we can map them directly
+    // i.e. N_CVS_TBD float CVs and N_TRIGS_TBD uint8_t TRIGs
     displayString("Mapping params, wait...");
     spi_api.SetActivePluginTrig(0, "ab_trigger", 0);
     trig_map["ab_trigger"] = 0;
@@ -356,7 +362,7 @@ void Ui::RealTimeCVTrigAPIExample(){
     while (1){
         // acquire real-time mutex blocking, this will block until the mutex is available
         midi.AcquireRealTimeMutexBlocking();
-        // trigger sounds, we use the cv and trig maps to map the parameters to the real-time state buffer
+        // trigger sounds, CVs and TRIGs have been linearly mapped before to the real-time state buffer
         // note on
         midi.SetRealTimeTrig(trig_map["ab_trigger"], 1); // analog bass drum
         midi.SetRealTimeCV(cv_map["ab_f0"], 0.2f); // analog bass drum tone
