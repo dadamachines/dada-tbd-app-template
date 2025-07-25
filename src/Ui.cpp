@@ -357,6 +357,22 @@ void Ui::RealTimeCVTrigAPIExample(){
     cv_map["ab_decay"] = 1;
     cv_map_names["ab_decay"] = getParamNameById(params, "ab_decay");
 
+    // store as preset, so we can load it later and would not have to map the parameters again
+    displayString("Saving preset, wait...");
+    spi_api.SavePreset(0, "Mapped", 1); // save preset with name DrumRackPreset and id 1
+    // load preset to check if it works
+    displayString("Loading preset, wait...");
+    spi_api.LoadPreset(0, 1); // load preset with id 1
+    // get the json string of the presets (contains all presets for plugin), this could be stored in a file and automatically loaded on startup
+    displayString("Getting preset data, wait...");
+    spi_api.GetPresetData("DrumRack", res);
+    // set the preset data to the plugin, this will set the parameters to the values stored in the preset
+    displayString("Setting preset data, wait...");
+    spi_api.SetPresetData("DrumRack", res);
+    // load the preset again to check if it works
+    displayString("Loading preset again, wait...");
+    spi_api.LoadPreset(0, 1); // load preset with id 1
+
     // trigger sounds
     // note if you don't hear anything, maybe your DrumRack default patch still has some mappings, which prevent sound trigger e.g. mutes on, check that in the web editor
     while (1){
