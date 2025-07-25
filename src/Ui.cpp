@@ -224,6 +224,11 @@ void Ui::UpdateUIInputsBlocking(){
 }
 
 void Ui::LoadDrumRackAndMapNoteOnsExample(){
+    while (!midi.GetP4AliveStatus()) {
+        displayString("Waiting for P4...");
+        delay(1000);
+    }
+
     std::string res;
     // load drum rack plugin
     displayStringWait1s("Load DrumRack");
@@ -303,6 +308,10 @@ static std::string getParamNameById(JsonArray const& params, std::string const &
 }
 
 void Ui::RealTimeCVTrigAPIExample(){
+    while (!midi.GetP4AliveStatus()) {
+        displayString("Waiting for P4...");
+        delay(1000);
+    }
     midi.SetBypassLegacyMidiParser(true); // disable legacy midi parser, we use direct real-time values in this example
 
     // load drum rack plugin
