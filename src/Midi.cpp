@@ -250,7 +250,11 @@ void Midi::Update(){
             memset(&spi_trans[current_trans].out_buf[2 + N_CVS * 4], 0, (N_CVS_TBD - N_CVS) * 4); // set the rest of the CVs to zero, we only use 90 CVs from the old midi parser
         }else{
             // use real-time state buffer directly, bypass the legacy midi parser
-            if (!mutex_try_enter(&real_time_mutex, 0)) return; // try to enter the mutex, if it is not available, we skip this update
+            // try to enter the mutex
+            if (!mutex_try_enter(&real_time_mutex, 0)){ //if it is not available
+                current_trans ^= 0x1; // we revert to the previous transfer
+                return; // and return
+            }
             // copy the real-time state buffer to the SPI transfer buffer
             memcpy(spi_trans[current_trans].out_buf + 2, real_time_state_buffer, N_CVS_TBD * 4 + N_TRIGS_TBD); // 2 bytes for fingerprint, N_CVS_TBD * 4 bytes for CVs, N_TRIGS_TBD bytes for TRIGs
             real_time_state_buffer_consumed = 1; // set the real-time buffer state to consumed
