@@ -17,6 +17,8 @@
 - Parsed MIDI data is sent thru SPI to TBDs sound processor (ESP32-P4), this happens every 44100 / 32 Hz, i.e. each audio block
 - OLED display shows current state of UI elements, i.e. button pressed, encoder positions, SD card status, etc.
 - NeoPixel LED strip shows current state of UI elements, i.e. button pressed, encoder positions, etc.
+- One can boot the P4 into ota_1 partition by long-pressing and holding all encoders, this requires that ota_1 partition is flashed with firmware supporting this feature
+  - This feature is useful to expose the P4 sd-card as USB mass storage device, given that the ota_1 is flashed with the correct firmware
 - Rotary encoders and buttons are polled from STM32F0 uC via I2C
 
 ### Optional behaviour

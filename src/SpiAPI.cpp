@@ -288,3 +288,10 @@ bool SpiAPI::Reboot(){
     delay(10000);
     return true;
 }
+
+bool SpiAPI::RebootIntoOTA1(){
+    *request_type = RequestType_t::RebootToOTA1;
+    send();
+    delay(1000);
+    return true;
+}

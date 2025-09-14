@@ -423,6 +423,16 @@ void Ui::RealTimeCVTrigAPIExample(){
     }
 }
 
+void Ui::BootIntoOTA1(){
+    display.clearDisplay();
+    display.setTextSize(1);
+    display.setTextColor(SSD1309_WHITE);
+    display.setCursor(0, 0);
+    display.printf("P4 sd-card mode...\n");
+    display.printf("Release button\n");
+    display.display();
+    spi_api.RebootIntoOTA1();
+}
 
 void Ui::RunUITests(){
     static unsigned long tick = 0;
@@ -436,6 +446,17 @@ void Ui::RunUITests(){
     UpdateUIInputsBlocking();
 
     char buf[64];
+
+    // check for boot into ota1 request
+    if (ui_data_current.mcl_btns_long_press & (1 << 9) &&
+        ui_data_current.mcl_btns_long_press & (1 << 10) &&
+        ui_data_current.mcl_btns_long_press & (1 << 11) &&
+        ui_data_current.mcl_btns_long_press & (1 << 12)
+        ){
+        BootIntoOTA1();
+
+        return;
+    }
 
     // print pots
     display.clearDisplay();
