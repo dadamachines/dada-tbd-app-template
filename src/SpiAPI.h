@@ -29,6 +29,9 @@ typedef enum{
     Reboot = 0x13, // reboots the device
     SetPluginParamsJSON = 0x14, // updates running plugin data, args [channel (uint8_t), presetData (json cstring)]
     RebootToOTA1 = 0x15, // reboots the device to OTA1
+    GetSampleRomDescriptor = 0x16, // returns json cstring with sample rom descriptor
+    SetActiveWaveTableBank = 0x17, // sets active wavetable bank, args [bank index (uint8_t)]
+    SetActiveSampleRomBank = 0x18, // sets active sample rom bank, args [bank index (uint8_t)]
 } RequestType_t;
 
 class SpiAPI{
@@ -61,4 +64,7 @@ public:
     bool GetIOCapabilities(std::string& response);
     bool Reboot();
     bool RebootIntoOTA1();
+    bool GetSampleRomDescriptor(std::string& response);
+    bool SetActiveWaveTableBank(const uint8_t bankIndex);
+    bool SetActiveSampleRomBank(const uint8_t bankIndex);
 };

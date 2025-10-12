@@ -295,3 +295,29 @@ bool SpiAPI::RebootIntoOTA1(){
     delay(1000);
     return true;
 }
+
+bool SpiAPI::GetSampleRomDescriptor(std::string& response){
+    // send GetSampleRomDescriptor request
+    response.clear();
+    *request_type = RequestType_t::GetSampleRomDescriptor; // request type
+    send();
+    return receiveData(response, RequestType_t::GetSampleRomDescriptor);
+}
+
+bool SpiAPI::SetActiveWaveTableBank(const uint8_t bankIndex){
+    *request_type = RequestType_t::SetActiveWaveTableBank; // request type
+    *uint8_param_0 = bankIndex; // bank index
+    send();
+    delay(2000); // wait for TBD to execute the command
+
+    return true;
+}
+
+bool SpiAPI::SetActiveSampleRomBank(const uint8_t bankIndex){
+    *request_type = RequestType_t::SetActiveSampleRomBank; // request type
+    *uint8_param_0 = bankIndex; // bank index
+    send();
+    delay(2000); // wait for TBD to execute the command
+
+    return true;
+}

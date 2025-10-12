@@ -20,6 +20,7 @@ void Ui::Init(){
     // uncomment for an example how to load and map DrumRack for control
     // LoadDrumRackAndMapNoteOnsExample();
     // RealTimeCVTrigAPIExample();
+    // GetAndDisplaySampleRomDescriptor_SetToBank1();
 }
 
 void Ui::InitHardware(){
@@ -432,6 +433,33 @@ void Ui::BootIntoOTA1(){
     display.printf("Release button\n");
     display.display();
     spi_api.RebootIntoOTA1();
+}
+
+void Ui::GetAndDisplaySampleRomDescriptor_SetToBank1(){
+    while (!midi.GetP4AliveStatus()) {
+        displayString("Waiting for P4...");
+        delay(1000);
+    }
+    std::string response;
+    displayStringWait1s("Get Sample Rom Desc...");
+    spi_api.GetSampleRomDescriptor(response);
+    JsonDocument doc;
+    DeserializationError error = deserializeJson(doc, response);
+    displayStringWait1s(response);
+    if (error){
+        displayStringWait1s("Error parsing json: " + std::string(error.c_str()));
+    }
+    if (!doc["smp_bank_names"].is<JsonArray>()){
+        displayStringWait1s("No sample banks found");
+        return;
+    }
+    JsonArray bank_names = doc["smp_bank_names"].as<JsonArray>();
+    if (bank_names.size() < 2){
+        displayStringWait1s("Only default bank available");
+        return;
+    }
+    displayStringWait1s("Selecting bank " + bank_names[1].as<std::string>());
+    spi_api.SetActiveSampleRomBank(1);
 }
 
 void Ui::RunUITests(){
