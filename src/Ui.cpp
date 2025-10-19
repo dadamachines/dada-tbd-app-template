@@ -21,6 +21,7 @@ void Ui::Init(){
     // LoadDrumRackAndMapNoteOnsExample();
     // RealTimeCVTrigAPIExample();
     // GetAndDisplaySampleRomDescriptor_SetToBank1();
+    // GetP4FirmwareInfo();
 }
 
 void Ui::InitHardware(){
@@ -458,8 +459,15 @@ void Ui::GetAndDisplaySampleRomDescriptor_SetToBank1(){
         displayStringWait1s("Only default bank available");
         return;
     }
-    displayStringWait1s("Selecting bank " + bank_names[1].as<std::string>());
-    spi_api.SetActiveSampleRomBank(1);
+    displayStringWait1s("Selecting bank " + bank_names[0].as<std::string>());
+    spi_api.SetActiveSampleRomBank(0);
+}
+
+void Ui::GetP4FirmwareInfo(){
+    std::string response;
+    spi_api.GetFirmwareInfo(response);
+    displayStringWait1s(std::string("P4 Firmware Info: ") + response);
+    sleep_ms(3000);
 }
 
 void Ui::RunUITests(){

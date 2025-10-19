@@ -84,6 +84,7 @@ public:
     void RealTimeCVTrigAPIExample();
     void BootIntoOTA1(); // can be used to reboot the P4 into sd-card mode (if available on the P4=
     void GetAndDisplaySampleRomDescriptor_SetToBank1();
+    void GetP4FirmwareInfo();
 
     // tests
     void RunUITests();

@@ -321,3 +321,10 @@ bool SpiAPI::SetActiveSampleRomBank(const uint8_t bankIndex){
 
     return true;
 }
+
+bool SpiAPI::GetFirmwareInfo(std::string& response){
+    response.clear();
+    *request_type = RequestType_t::GetFirmwareInfo;
+    send();
+    return receiveData(response, RequestType_t::GetFirmwareInfo);
+}

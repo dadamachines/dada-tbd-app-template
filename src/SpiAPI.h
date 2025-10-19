@@ -32,6 +32,7 @@ typedef enum{
     GetSampleRomDescriptor = 0x16, // returns json cstring with sample rom descriptor
     SetActiveWaveTableBank = 0x17, // sets active wavetable bank, args [bank index (uint8_t)]
     SetActiveSampleRomBank = 0x18, // sets active sample rom bank, args [bank index (uint8_t)]
+    GetFirmwareInfo = 0x19, // returns json {"HWV": hardware version, "FWV": firmware version, "OTA": active ota partition}
 } RequestType_t;
 
 class SpiAPI{
@@ -67,4 +68,5 @@ public:
     bool GetSampleRomDescriptor(std::string& response);
     bool SetActiveWaveTableBank(const uint8_t bankIndex);
     bool SetActiveSampleRomBank(const uint8_t bankIndex);
+    bool GetFirmwareInfo(std::string& response);
 };
