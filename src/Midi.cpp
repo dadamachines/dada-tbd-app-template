@@ -188,7 +188,7 @@ void Midi::Update(){
     // get data from UARTS, expand message, sometime single bytes are received, sometimes they may be running status
     while (Serial1.available() > 0){
         uint8_t val = Serial1.read();
-        Serial1.write(val); // midi thru
+        //Serial1.write(val); // midi thru
         MidiRunningStatusExpander::FeedResult res = midi_exp_uart0.Feed(val);
         if (res == MidiRunningStatusExpander::FeedResult::MessageComplete){
             int len;
@@ -231,7 +231,7 @@ void Midi::Update(){
             midiparser.QueueData(midi_data, *midi_len);
             // forward to UARTS
             if (*midi_len > 0){
-                //Serial1.write(midi_data, *midi_len);
+                Serial1.write(midi_data, *midi_len);
                 Serial2.write(midi_data, *midi_len); // from p4 usb device midi in
             }
         }
