@@ -87,6 +87,7 @@ public:
     void RunUITests();
     void RunSpiAPITests();
     void RunPSRAMTests();
+    void RunSDCardTests();
 
     ui_data_t CopyUiData(){
         return ui_data;

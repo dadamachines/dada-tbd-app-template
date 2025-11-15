@@ -22,6 +22,7 @@ void Ui::Init(){
     InitSDCard();
 
     RunPSRAMTests();
+    RunSDCardTests();
 
     // uncomment for an example how to load and map DrumRack for control
     // LoadDrumRackAndMapNoteOnsExample();
@@ -224,19 +225,48 @@ void Ui::RunPSRAMTests(){
     std::string sz = "PSRAM test, wait...\nSize:" + std::string(std::to_string(rp2040.getPSRAMSize())) + " bytes";
     displayStringWait1s(sz);
     // fill with random data each half
-    for (uint32_t i = 0; i < 4*1024*1024; i++){
-        uint8_t r = (uint8_t) random(256);
+    for (uint32_t i = 0; i < 8*1024*1024; i++){
+        uint8_t r = (uint8_t) (i % 0xFF);
         psramarray[i] = r;
-        psramarray[i+4*1024*1024] = r;
     }
     // compare data
-    for (uint32_t i = 0; i < 4*1024*1024; i++){
-        if (psramarray[i] != psramarray[i+4*1024*1024]){
+    for (uint32_t i = 0; i < 8*1024*1024; i++){
+        if (psramarray[i] != (uint8_t) (i % 0xFF)){
             displayStringWait1s("PSRAM test failed!");
             return;
         }
     }
     displayStringWait1s("PSRAM test passed!");
+}
+
+void Ui::RunSDCardTests(){
+    // test sd-card read / write performance
+    std::string s = "SD card test, wait...\n";
+    displayStringWait1s(s);
+    // write and read 32MiB of data and show read/write performance in MiB/s
+    const uint32_t testSize = 32 * 1024 * 1024;
+    File f = SD.open("sdperf.bin", FILE_WRITE);
+    uint8_t buf[1024];
+    uint32_t start = millis();
+    uint32_t end = millis();
+    for (uint32_t i = 0; i < testSize; i+= 1024){
+        f.write(buf, 1024);
+    }
+    end = millis();
+    float elapsed = (end - start) / 1000.0f;
+    f.close();
+    s = "SD card write:\n" + std::to_string(float(testSize) / elapsed / 1024.f / 1024.f) + " MiB/s\n";
+    displayStringWait1s(s);
+    f = SD.open("sdperf.bin", FILE_READ);
+    start = millis();
+    for (uint32_t i = 0; i < testSize; i+= 1024){
+        f.read(buf, 1024);
+    }
+    end = millis();
+    f.close();
+    elapsed = (end - start) / 1000.0f;
+    s = "SD card read:\n" + std::to_string(float(testSize) / elapsed / 1024.f / 1024.f) + " MiB/s\n";
+    displayStringWait1s(s);
 }
 
 bool Ui::UpdateUIInputs(){
