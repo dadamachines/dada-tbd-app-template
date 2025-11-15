@@ -21,6 +21,7 @@ void Ui::Init(){
     InitLeds();
     InitSDCard();
 
+    RunSpiAPITests();
     //RunPSRAMTests();
     //RunSDCardTests();
 
@@ -141,7 +142,6 @@ void Ui::Update(){
         delay(1000);
     }
 
-    //RunSpiAPITests();
     RunUITests();
 }
 
@@ -195,23 +195,20 @@ void Ui::RunSpiAPITests(){
     spi_api.GetPresetData("TBDeep", response);
     displayStringWait1s(response);
     spi_api.SetPresetData("TBDeep", response);
-    delay(1000);
 
     displayStringWait1s("Get/Set Configuration...");
     spi_api.GetConfiguration(response);
     spi_api.SetConfiguration(response);
-    delay(1000);
 
     displayStringWait1s("Get All Favorites...");
     spi_api.GetAllFavorites(response);
-    displayString(response);
+    displayStringWait1s(response);
     displayStringWait1s("Load Favorite 1...");
     spi_api.LoadFavorite(1);
     displayStringWait1s("Save Favorite 0...");
     response =
         "{\"name\":\"Test123\",\"plug_0\":\"SineSrc\",\"pre_0\":0,\"plug_1\":\"SineSrc\",\"pre_1\":0,\"ustring\":\"Test1234\"}";
     spi_api.SaveFavorite(0, response);
-    delay(1000);
 
     displayStringWait1s("Get IO Caps...");
     spi_api.GetIOCapabilities(response);
