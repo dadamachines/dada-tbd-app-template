@@ -28,22 +28,20 @@
 
 typedef struct{
     uint16_t pot_adc_values[8]; // raw adc values
-    // absolute positions of the pots, 0..1023
     uint16_t pot_positions[4]; // absolute position 0..1023
-    // pot states, BIT0: fwd, BIT1: bwd, BIT2: fast (not implemented)
     uint8_t pot_states[4]; // BIT0: fwd, BIT1: bwd, BIT2: fast
-    // step sequencer buttons
-    uint16_t d_btns; // BIT0-15: D1-D16, buttons e.g. for step sequencer
+    // 16-bit
+    uint16_t d_btns; // BIT0-15: D1-D16
     uint16_t d_btns_long_press; // BIT0-15: D1-D16
-    // function buttons
-    uint8_t f_btns; // BIT0: F1, BIT1: F2, BIT2: F3, BIT3: F4, BIT4: F5
-    uint8_t f_btns_long_press; // BIT0: F1, BIT1: F2, BIT2: F3, BIT3: F4, BIT4: F5
-    // system control buttons
-    // 0: rec, 1: play, 2: stop, 3: page up, 4: page down, 5: up cursor, 6: left cursor, 7: down cursor, 8: right cursor, 9: endless pot 1 (leftmost), 10: endless pot 2, 11: endless pot 3, 12: endless pot 4 (rightmost)
+    // function buttons are (0: F1, 1: F2, 2: POT1 (left), 3: POT2, 4: POT3, 5: POT4 (right))
+    // 6-bit
+    uint8_t f_btns;
+    uint8_t f_btns_long_press;
+    // mcl buttons are (0: MCL_LEFT, 1: MCL_DOWN, 2: MCL_RIGHT, 3: MCL_UP, 4: MCL_A, 5: MCL_B, 6: MCL_X, 7: MCL_Y, 8: MCL_P, 9: MCL_R, 10: MCL_S1, 11: MCL_S2)
+    // 12-bit
     uint16_t mcl_btns;
-    // BIT0: MCL1, BIT1: MCL2, BIT2: MCL3, BIT3: MCL4, BIT4: MCL5, BIT5: MCL6, BIT6: MCL7, BIT7: MCL8, BIT8: MCL9, BIT9: MCL10, BIT10: MCL11, BIT11: MCL12
     uint16_t mcl_btns_long_press;
-    // BIT0: MCL1, BIT1: MCL2, BIT2: MCL3, BIT3: MCL4, BIT4: MCL5, BIT5: MCL6, BIT6: MCL7, BIT7: MCL8, BIT8: MCL9, BIT9: MCL10, BIT10: MCL11, BIT11: MCL12
+    int16_t accelerometer[3];
     uint32_t systicks; // timestamp
 } ui_data_t;
 
@@ -58,7 +56,6 @@ class Ui{
     const uint8_t rgb_led_rp2350 = 0;
     const uint8_t rgb_led_btn_map[16] = {8, 7, 6, 5, 4, 3, 2, 1, 9, 10, 11, 12, 13, 14, 15, 16};
     const uint8_t rgb_led_fbtn_map[3] = {19, 17, 18};
-    const uint8_t rgb_led_mcl = 20;
     uint32_t ledStatus = 0;
     bool p4Ready{false}; // P4 ready indicator
     bool resetRequested{false}; // reset request indicator
@@ -89,6 +86,7 @@ public:
     // tests
     void RunUITests();
     void RunSpiAPITests();
+    void RunPSRAMTests();
 
     ui_data_t CopyUiData(){
         return ui_data;

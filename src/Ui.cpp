@@ -7,16 +7,22 @@
 SpiAPI spi_api;
 
 #define STM32RESET_PIN 40
+#define SDRESET_PIN 17
 
 #define SDIO_CLK_GPIO 2
 #define SDIO_CMD_GPIO 3
 #define SDIO_DAT0_GPIO 4
+
+uint8_t psramarray[8*1024*1024] PSRAM;
 
 void Ui::Init(){
     InitHardware();
     InitDisplay();
     InitLeds();
     InitSDCard();
+
+    RunPSRAMTests();
+
     // uncomment for an example how to load and map DrumRack for control
     // LoadDrumRackAndMapNoteOnsExample();
     // RealTimeCVTrigAPIExample();
@@ -28,8 +34,13 @@ void Ui::InitHardware(){
     // reset stm
     pinMode(STM32RESET_PIN, OUTPUT);
     digitalWrite(STM32RESET_PIN, false);
-    delay(10);
+    // reset SD card
+    pinMode(SDRESET_PIN, OUTPUT);
+    digitalWrite(SDRESET_PIN, true);
+
+    delay(100);
     digitalWrite(STM32RESET_PIN, true);
+    digitalWrite(SDRESET_PIN, false);
 
     // SPI API init
     spi_api.Init();
@@ -207,6 +218,25 @@ void Ui::RunSpiAPITests(){
 
     displayStringWait1s("Reboot P4...");
     spi_api.Reboot();
+}
+
+void Ui::RunPSRAMTests(){
+    std::string sz = "PSRAM test, wait...\nSize:" + std::string(std::to_string(rp2040.getPSRAMSize())) + " bytes";
+    displayStringWait1s(sz);
+    // fill with random data each half
+    for (uint32_t i = 0; i < 4*1024*1024; i++){
+        uint8_t r = (uint8_t) random(256);
+        psramarray[i] = r;
+        psramarray[i+4*1024*1024] = r;
+    }
+    // compare data
+    for (uint32_t i = 0; i < 4*1024*1024; i++){
+        if (psramarray[i] != psramarray[i+4*1024*1024]){
+            displayStringWait1s("PSRAM test failed!");
+            return;
+        }
+    }
+    displayStringWait1s("PSRAM test passed!");
 }
 
 bool Ui::UpdateUIInputs(){
@@ -531,19 +561,11 @@ void Ui::RunUITests(){
     display.printf("%s\n", buf);
 
     // print fbuttons
-    /*
-    if (ui_data_current.f_btns & (1 << 4))
-      strip.setPixelColor(rgb_led_fbtn_map[0], strip.Color(0, 255, 0));
-    else
-      strip.setPixelColor(rgb_led_fbtn_map[0], strip.Color(64, 64, 64));
-    if (ui_data_current.f_btns_long_press & (1 << 4))
-      strip.setPixelColor(rgb_led_fbtn_map[0], strip.Color(255, 0, 0));
-    */
-    if (ui_data_current.f_btns & (1 << 2))
+    if (ui_data_current.f_btns & (1 << 1))
         strip.setPixelColor(rgb_led_fbtn_map[1], strip.Color(0, 255, 0));
     else
         strip.setPixelColor(rgb_led_fbtn_map[1], strip.Color(64, 64, 64));
-    if (ui_data_current.f_btns_long_press & (1 << 2))
+    if (ui_data_current.f_btns_long_press & (1 << 1))
         strip.setPixelColor(rgb_led_fbtn_map[1], strip.Color(255, 0, 0));
 
     if (ui_data_current.f_btns & (1 << 0))
@@ -560,7 +582,7 @@ void Ui::RunUITests(){
     strip.setPixelColor(rgb_led_fbtn_map[0], strip.Color(r, g, b));
     //display.printf("%d\n", ledStatus);
 
-    for (int i = 0; i < 5; i++){
+    for (int i = 0; i < 6; i++){
         if (ui_data_current.f_btns & (1 << i)){
             buf[i] = '1';
         }
@@ -571,17 +593,11 @@ void Ui::RunUITests(){
             buf[i] = 'L';
         }
     }
-    buf[5] = 0;
-    display.printf("%s\n", buf);
+    buf[6] = 0;
+    // f_btns and accelerometer
+    display.printf("%s %+04d %+04d %+04d\n", buf, ui_data_current.accelerometer[0]>>8, ui_data_current.accelerometer[1]>>8, ui_data_current.accelerometer[2]>>8);
 
     // print mcl buttons
-    if (ui_data_current.mcl_btns & (1 << 1))
-        strip.setPixelColor(rgb_led_mcl, strip.Color(0, 255, 0));
-    else
-        strip.setPixelColor(rgb_led_mcl, strip.Color(64, 64, 64));
-    if (ui_data_current.mcl_btns_long_press & (1 << 1))
-        strip.setPixelColor(rgb_led_mcl, strip.Color(255, 0, 0));
-
     for (int i = 0; i < 13; i++){
         if (ui_data_current.mcl_btns & (1 << i)){
             buf[i] = '1';
@@ -615,7 +631,7 @@ void Ui::RunUITests(){
         tickLED = (tickLED + 1) % 16; // cycle through the LEDs
     }
     if (bpm % 80 == 60){
-        strip.setPixelColor(rgb_led_mcl, strip.Color(255, 255, 255));
+        strip.setPixelColor(rgb_led_fbtn_map[1], strip.Color(255, 255, 255));
     }
     strip.setPixelColor(rgb_led_btn_map[tickLED], strip.Color(255, 0, 0)); // blink the current tick LED
     bpm++;
