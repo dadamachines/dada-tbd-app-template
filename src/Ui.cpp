@@ -223,7 +223,7 @@ void Ui::RunSpiAPITests(){
 
 void Ui::RunPSRAMTests(){
     std::string sz = "PSRAM test, wait...\nSize:" + std::string(std::to_string(rp2040.getPSRAMSize())) + " bytes";
-    displayStringWait1s(sz);
+    displayString(sz);
     // fill with random data each half
     for (uint32_t i = 0; i < 8*1024*1024; i++){
         uint8_t r = (uint8_t) (i % 0xFF);
@@ -242,7 +242,7 @@ void Ui::RunPSRAMTests(){
 void Ui::RunSDCardTests(){
     // test sd-card read / write performance
     std::string s = "SD card test, wait...\n";
-    displayStringWait1s(s);
+    displayString(s);
     // write and read 32MiB of data and show read/write performance in MiB/s
     const uint32_t testSize = 32 * 1024 * 1024;
     File f = SD.open("sdperf.bin", FILE_WRITE);
