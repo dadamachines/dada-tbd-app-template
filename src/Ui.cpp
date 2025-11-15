@@ -21,8 +21,8 @@ void Ui::Init(){
     InitLeds();
     InitSDCard();
 
-    RunPSRAMTests();
-    RunSDCardTests();
+    //RunPSRAMTests();
+    //RunSDCardTests();
 
     // uncomment for an example how to load and map DrumRack for control
     // LoadDrumRackAndMapNoteOnsExample();

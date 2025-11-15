@@ -10,7 +10,7 @@
 class Midi final{
     std::atomic<uint32_t> ledStatus {0};
     std::atomic<uint32_t> p4Alive {0}; // P4 ready status
-    DaDa_SPI real_time_spi {spi1, 29, 31, 28, 30, 30000000};
+    DaDa_SPI real_time_spi {spi1, 29, 31, 28, 30, 22, 30000000};
     bool bypassLegacyMidiParser {false}; // bypass legacy MIDI parser, use only USB MIDI parser
     mutex_t real_time_mutex; // mutex for real-time state buffer
     std::atomic<uint32_t> real_time_state_buffer_consumed {0};

@@ -212,6 +212,7 @@ void Midi::Update(){
 
         // check if previous real-time control DMA is done
         real_time_spi.WaitUntilDMADoneBlocking();
+        real_time_spi.WaitUntilP4IsReady();
 
         // schedule next DMA transfer
         real_time_spi.StartDMA(spi_trans[current_trans].out_buf, spi_trans[current_trans].in_buf, SPI_BUFFER_LEN);
