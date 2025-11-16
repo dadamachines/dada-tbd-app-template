@@ -15,8 +15,9 @@ static MidiRunningStatusExpander midi_exp_uart1; // MIDI running status expander
 // max. is about 32/44100 * 30000000 / 8 = 2721 bytes
 // data rate with 2048 bytes approx. 44100/32 * 2048 / 1024 / 1024 = 2.7 MB/s
 // 1024 seems to be a safe margin for a transfer to be completed in time
+// 2048 works as well
 // this value must correspond to the SPI_BUFFER_LEN in the P4 firmware (rp2350_spi_stream.cpp)
-#define SPI_BUFFER_LEN 1024
+#define SPI_BUFFER_LEN 2048
 
 // sync codec 44100Hz
 #define WS_PIN 27
