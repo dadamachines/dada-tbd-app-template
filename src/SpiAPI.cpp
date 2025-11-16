@@ -16,6 +16,14 @@ void SpiAPI::Init(){
     out_buf[1] = 0xFE; // fingerprint
 }
 
+void SpiAPI::WaitSpiAPIReadyForCmd(){
+    cmd_api_spi.WaitUntilP4IsReady();
+}
+
+bool SpiAPI::GetSpiAPIReadyForCmd(){
+    return cmd_api_spi.GetP4Ready();
+}
+
 bool SpiAPI::transmitData(const std::string &data, const RequestType_t reqType){
     uint32_t len = data.length();
     const char* str = data.c_str();
@@ -106,7 +114,8 @@ bool SpiAPI::SetActivePlugin(const uint8_t channel, const std::string& pluginID)
     uint8_t* pluginIDField = string_param_3;
     memcpy(pluginIDField, pluginID.c_str(), pluginID.length() + 1); // copy pluginID to buffer, ensure null-termination
     send();
-    //delay(2000); // wait for TBD to execute the command
+    WaitSpiAPIReadyForCmd();
+    delay(10); // wait for TBD to execute the command
 
     return true;
 }
@@ -147,7 +156,7 @@ bool SpiAPI::LoadPreset(const uint8_t channel, const int8_t presetID){
     *uint8_param_0 = channel; // channel number
     *uint8_param_1 = presetID; // preset ID
     send();
-    //delay(1000); // wait for TBD to execute the command
+    cmd_api_spi.WaitUntilP4IsReady();
 
     return true;
 }
@@ -160,7 +169,7 @@ bool SpiAPI::SavePreset(const uint8_t channel, const std::string & presetName, c
     uint8_t* param_preset_name_field = string_param_3;
     memcpy(param_preset_name_field, presetName.c_str(), presetName.length() + 1);
     send();
-    //delay(1000); // wait for TBD to execute the command
+    cmd_api_spi.WaitUntilP4IsReady();
 
     return true;
 }
@@ -176,7 +185,6 @@ bool SpiAPI::SetPresetData(const std::string& pluginID, const std::string& data)
     memcpy(param_name_field, pluginID.c_str(), pluginID.length() + 1);
     send();
     bool res = transmitData(data, RequestType_t::SetPresetData); // send the preset data
-    //delay(1000); // wait for TBD to execute the command
     return res;
 }
 
@@ -197,6 +205,7 @@ bool SpiAPI::SetActivePluginParam(const uint8_t channel, const std::string& para
     uint8_t* param_name_field = string_param_3;
     memcpy(param_name_field, paramName.c_str(), paramName.length() + 1);
     send();
+    cmd_api_spi.WaitUntilP4IsReady();
     return true;
 }
 
@@ -207,6 +216,7 @@ bool SpiAPI::SetActivePluginCV(const uint8_t channel, const std::string& paramNa
     uint8_t* param_name_field = string_param_3;
     memcpy(param_name_field, paramName.c_str(), paramName.length() + 1);
     send();
+    cmd_api_spi.WaitUntilP4IsReady();
     return true;
 }
 
@@ -217,6 +227,7 @@ bool SpiAPI::SetActivePluginTrig(const uint8_t channel, const std::string& param
     uint8_t* param_name_field = string_param_3;
     memcpy(param_name_field, paramName.c_str(), paramName.length() + 1);
     send();
+    cmd_api_spi.WaitUntilP4IsReady();
     return true;
 }
 
@@ -234,7 +245,7 @@ bool SpiAPI::SaveFavorite(const uint8_t number, const std::string& favoriteData)
     *uint8_param_0 = number; // channel number
     send();
     bool res = transmitData(favoriteData, RequestType_t::SaveFavorite); // send the favorite data
-    //delay(2000); // wait for TBD to execute the command
+    cmd_api_spi.WaitUntilP4IsReady();
     return res;
 }
 
@@ -243,8 +254,7 @@ bool SpiAPI::LoadFavorite(const int8_t favoriteID){
     *request_type = RequestType_t::LoadFavorite; // request type
     *uint8_param_0 = favoriteID; // favorite ID
     send();
-    //delay(2000); // wait for TBD to execute the command
-
+    cmd_api_spi.WaitUntilP4IsReady();
     return true;
 }
 
@@ -268,7 +278,7 @@ bool SpiAPI::SetConfiguration(const std::string& configData){
     *request_type = RequestType_t::SetConfiguration; // request type
     send();
     bool res = transmitData(configData, RequestType_t::SetConfiguration);
-    //delay(1000); // wait for TBD to execute the command
+    cmd_api_spi.WaitUntilP4IsReady();
     return res;
 }
 
@@ -308,7 +318,7 @@ bool SpiAPI::SetActiveWaveTableBank(const uint8_t bankIndex){
     *request_type = RequestType_t::SetActiveWaveTableBank; // request type
     *uint8_param_0 = bankIndex; // bank index
     send();
-    //delay(2000); // wait for TBD to execute the command
+    cmd_api_spi.WaitUntilP4IsReady();
 
     return true;
 }
@@ -317,7 +327,7 @@ bool SpiAPI::SetActiveSampleRomBank(const uint8_t bankIndex){
     *request_type = RequestType_t::SetActiveSampleRomBank; // request type
     *uint8_param_0 = bankIndex; // bank index
     send();
-    //delay(2000); // wait for TBD to execute the command
+    cmd_api_spi.WaitUntilP4IsReady();
 
     return true;
 }

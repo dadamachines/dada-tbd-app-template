@@ -42,6 +42,8 @@ class SpiAPI{
     DaDa_SPI cmd_api_spi {spi0, 33, 35, 32, 34, 18, 30000000};
 public:
     void Init();
+    void WaitSpiAPIReadyForCmd();
+    bool GetSpiAPIReadyForCmd();
     bool GetPlugins(std::string& response); // true on success, response contains JSON string of plugins
     // true on success, response contains name of active plugin
     bool GetActivePlugin(const uint8_t channel, std::string& response);

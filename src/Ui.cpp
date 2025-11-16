@@ -21,9 +21,9 @@ void Ui::Init(){
     InitLeds();
     InitSDCard();
 
-    RunSpiAPITests();
-    //RunPSRAMTests();
-    //RunSDCardTests();
+    // RunSpiAPITests();
+    // RunPSRAMTests();
+    // RunSDCardTests();
 
     // uncomment for an example how to load and map DrumRack for control
     // LoadDrumRackAndMapNoteOnsExample();
@@ -290,24 +290,23 @@ void Ui::LoadDrumRackAndMapNoteOnsExample(){
 
     std::string res;
     // load drum rack plugin
-    displayStringWait1s("Load DrumRack");
+    displayStringWait1s("Load DrumRack...");
     spi_api.SetActivePlugin(0, "DrumRack");
 
     // show all available plugin parameters, they come as json from the api
-    /*
+
     spi_api.GetActivePluginParams(0, res);
     res = "DrumRack params: " + res;
     displayStringWait1s(res);
-    */
+
 
     // show capabilities of the TBD, those are the strings for all possible mappings
     // ch10 midi, which is the drum channel, has on position 16 of the boolean mapping options A_75_P_C1 which corresponds to the note C1 on ch 10
     // refer to the current midi implementation here: https://docs.google.com/document/d/1nE06D81PKwmRPWvzO2XH71YJTlkTrWKaK04dhERxskg/edit?tab=t.0
-    /*
     spi_api.GetIOCapabilities(res);
     res = "IO Caps: " + res;
     displayStringWait1s(res);
-    */
+
 
     // set automation for boolean params of plugin here triggers, map all instruments of DrumRack from note C1 on ch10 onwards
     // this mapps all instruments of the DrumRack to the note on events of the drum channel 10 starting C1 Ableton nomenclature, which is C0 Elektron Octatrack
@@ -374,10 +373,9 @@ void Ui::RealTimeCVTrigAPIExample(){
     midi.SetBypassLegacyMidiParser(true); // disable legacy midi parser, we use direct real-time values in this example
 
     // load drum rack plugin
-    displayString("Load DrumRack");
+    displayString("Load DrumRack...");
     spi_api.SetActivePlugin(0, "DrumRack");
-    delay(500);
-    displayString("Getting all params for plugin, wait...");
+    displayString("Getting all params for plugin...");
     // get all available plugin parameters, they come as json from the api
     std::string res;
     spi_api.GetActivePluginParams(0, res);
@@ -516,8 +514,9 @@ void Ui::GetAndDisplaySampleRomDescriptor_SetToBank1(){
         displayStringWait1s("Only default bank available");
         return;
     }
-    displayStringWait1s("Selecting bank " + bank_names[0].as<std::string>());
+    displayStringWait1s("Selecting bank\n" + bank_names[0].as<std::string>() + "\nwait...");
     spi_api.SetActiveSampleRomBank(0);
+    spi_api.WaitSpiAPIReadyForCmd();
 }
 
 void Ui::GetP4FirmwareInfo(){
