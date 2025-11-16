@@ -21,7 +21,7 @@ static MidiRunningStatusExpander midi_exp_uart1; // MIDI running status expander
 // sync codec 44100Hz
 #define WS_PIN 27
 
-#define LED_GREEN 24
+#define LED_GREEN 25
 
 static bool led_state = false;
 
