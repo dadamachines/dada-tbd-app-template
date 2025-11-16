@@ -624,7 +624,7 @@ void Ui::RunUITests(){
     display.printf("%s %+04d %+04d %+04d\n", buf, ui_data_current.accelerometer[0]>>8, ui_data_current.accelerometer[1]>>8, ui_data_current.accelerometer[2]>>8);
 
     // print mcl buttons
-    for (int i = 0; i < 13; i++){
+    for (int i = 0; i < 12; i++){
         if (ui_data_current.mcl_btns & (1 << i)){
             buf[i] = '1';
         }
@@ -635,7 +635,7 @@ void Ui::RunUITests(){
             buf[i] = 'L';
         }
     }
-    buf[13] = 0;
+    buf[12] = 0;
     display.printf("%s\n", buf);
 
     if (sdInitialized){
