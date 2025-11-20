@@ -481,14 +481,43 @@ void Ui::RealTimeCVTrigAPIExample(){
 }
 
 void Ui::BootIntoOTA1(){
+    digitalWrite(STM32RESET_PIN, false);
+    resetRequested = true;
     display.clearDisplay();
     display.setTextSize(1);
     display.setTextColor(SSD1309_WHITE);
     display.setCursor(0, 0);
-    display.printf("P4 sd-card mode...\n");
-    display.printf("Release button\n");
+    display.printf("P4 sd-card mode, wait\n");
     display.display();
     spi_api.RebootIntoOTA1();
+    delay(2000);
+    std::string res;
+    spi_api.GetFirmwareInfo(res);
+    JsonDocument doc;
+    DeserializationError error = deserializeJson(doc, res);
+    if (error){
+        displayStringWait1s("Error parsing json: " + std::string(error.c_str()));
+    }
+    // check if json object key FWV==tusb_msc_1.1 and OTA==ota1
+    if (doc["OTA"].as<std::string>() == "ota1"){
+        displayStringWait1s("usb-msc active on P4\nde-mount sd to reboot tbd");
+    }
+    else{
+        displayStringWait1s("Boot into OTA1 failed");
+    }
+    do{
+        /*
+        static int cnt=0;
+        displayStringWait1s("Get Firmware Info..." + std::to_string(cnt++));
+
+        displayStringWait1s(res);
+        */
+        spi_api.GetFirmwareInfo(res);
+        delay(1000);
+        deserializeJson(doc, res);
+    }while (doc["OTA"].as<std::string>() != "ota0");
+
+
 }
 
 void Ui::GetAndDisplaySampleRomDescriptor_SetToBank1(){
@@ -532,6 +561,7 @@ void Ui::RunUITests(){
     tick = millis();
     static uint32_t bpm = 0;
     static uint8_t tickLED = 0;
+    static bool wasInOTA1 = false;
 
     ui_data_t ui_data_current = CopyUiData(); // copy current ui data
     // start background DMA ui_data update
@@ -540,16 +570,23 @@ void Ui::RunUITests(){
     char buf[64];
 
     // check for boot into ota1 request
-    if (ui_data_current.mcl_btns_long_press & (1 << 9) &&
+    if (ui_data_current.mcl_btns_long_press & (1 << 8) &&
+        ui_data_current.mcl_btns_long_press & (1 << 9) &&
         ui_data_current.mcl_btns_long_press & (1 << 10) &&
         ui_data_current.mcl_btns_long_press & (1 << 11) &&
-        ui_data_current.mcl_btns_long_press & (1 << 12)
+        !wasInOTA1
         ){
         BootIntoOTA1();
-
+        // required to flush buttons, somehow it get's stuck
+        UpdateUIInputsBlocking();
+        delay(10);
+        UpdateUIInputsBlocking();
+        delay(10);
+        wasInOTA1 = true;
         return;
     }
 
+    wasInOTA1 = false;
     // print pots
     display.clearDisplay();
     display.setTextSize(1);
