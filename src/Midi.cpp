@@ -19,6 +19,11 @@ static MidiRunningStatusExpander midi_exp_uart1; // MIDI running status expander
 // this value must correspond to the SPI_BUFFER_LEN in the P4 firmware (rp2350_spi_stream.cpp)
 #define SPI_BUFFER_LEN 1024
 
+#define BUF_OFFSET_LED 2 // two bytes for led status
+#define BUF_OFFSET_ABLETON_LINK_DATA (BUF_OFFSET_LED + 4) // 4 bytes for led data
+#define BUF_OFFSET_MIDI_LENGTH (BUF_OFFSET_ABLETON_LINK_DATA + sizeof(link_session_data_t)) // sizeof(link_session_data_t) bytes for link data
+#define BUF_OFFSET_MIDI_DATA (BUF_OFFSET_MIDI_LENGTH + 4) // 4 bytes for midi length
+
 // sync codec 44100Hz
 #define WS_PIN 27
 
@@ -143,6 +148,7 @@ void Midi::Init(){
     digitalWrite(USBA_PWR_ENA_GPIO, true); // enable USB power
     digitalWrite(USBA_SEL_GPIO, true); // select USB A port
 
+
     // UARTS / MIDI
     // the mapping uart0 = Serial1 and uart1 = Serial2 is fixed in Arduino
     // https://arduino-pico.readthedocs.io/en/latest/serial.html
@@ -168,6 +174,7 @@ void Midi::Init(){
     // init real-time state buffer
     memset(real_time_state_buffer, 0, N_CVS_TBD * 4 + N_TRIGS_TBD); // clear the buffer
     mutex_init(&real_time_mutex); // initialize the mutex for real-time state buffer
+    mutex_init(&ableton_link_data_mutex); // initialize the mutex for real-time state buffer
 }
 
 void Midi::Update(){
@@ -226,11 +233,16 @@ void Midi::Update(){
         if (spi_trans[current_trans].in_buf[0] == 0xCA && spi_trans[current_trans].in_buf[1] == 0xFE){
             // fingerprint matches, we have a valid transfer
             // update the LED status from the SPI transfer
-            uint32_t *led = (uint32_t *) &spi_trans[current_trans].in_buf[2];
+            uint32_t *led = (uint32_t *) &spi_trans[current_trans].in_buf[BUF_OFFSET_LED];
             ledStatus = *led; // update led status from SPI transfer
+            link_session_data_t *link_data_ = (link_session_data_t *) &spi_trans[current_trans].in_buf[BUF_OFFSET_ABLETON_LINK_DATA];
+            if (mutex_try_enter(&ableton_link_data_mutex, nullptr)){
+                memcpy(&link_data, link_data_, sizeof(link_session_data_t));
+                mutex_exit(&ableton_link_data_mutex);
+            };
             // see if we have USB device midi data from p4?
-            uint32_t *midi_len = (uint32_t*) &spi_trans[current_trans].in_buf[6];
-            uint8_t *midi_data = (uint8_t*) &spi_trans[current_trans].in_buf[10];
+            uint32_t *midi_len = (uint32_t*) &spi_trans[current_trans].in_buf[BUF_OFFSET_MIDI_LENGTH];
+            uint8_t *midi_data = (uint8_t*) &spi_trans[current_trans].in_buf[BUF_OFFSET_MIDI_DATA];
             midiparser.QueueData(midi_data, *midi_len);
             // forward to UARTS
             if (*midi_len > 0){
@@ -254,7 +266,7 @@ void Midi::Update(){
         }else{
             // use real-time state buffer directly, bypass the legacy midi parser
             // try to enter the mutex
-            if (!mutex_try_enter(&real_time_mutex, 0)){ //if it is not available
+            if (!mutex_try_enter(&real_time_mutex, nullptr)){ //if it is not available
                 current_trans ^= 0x1; // we revert to the previous transfer
                 return; // and return
             }

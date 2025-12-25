@@ -3,6 +3,7 @@
 #include "DadaLogo.h"
 #include <SD.h>
 #include <map>
+#include "Fonts/TomThumb.h"
 
 SpiAPI spi_api;
 
@@ -14,6 +15,14 @@ SpiAPI spi_api;
 #define SDIO_DAT0_GPIO 4
 
 uint8_t psramarray[8*1024*1024] PSRAM;
+
+// compute a 0..1 counter that runs `quantum` times faster than `phase`
+static float phased_subcounter(float phase, float quantum){
+    // multiply phase by quantum and wrap into [0,1)
+    float v = std::fmod(phase * quantum, 1.0f);
+    if (v < 0.0f) v += 1.0f; // handle negative phases
+    return v;
+}
 
 void Ui::Init(){
     InitHardware();
@@ -59,6 +68,8 @@ void Ui::InitDisplay(){
     // display init
     display.begin(0, true);
     display.setRotation(0);
+    display.setTextSize(1);
+    display.setFont(&TomThumb);
     display.clearDisplay();
     display.display();
 }
@@ -589,12 +600,14 @@ void Ui::RunUITests(){
     wasInOTA1 = false;
     // print pots
     display.clearDisplay();
-    display.setTextSize(1);
     display.setTextColor(SSD1309_WHITE);
-    display.setCursor(0, 0);
-    display.printf("%04d %04d %04d %04d\n", ui_data_current.pot_positions[0], ui_data_current.pot_positions[1],
-                   ui_data_current.pot_positions[2], ui_data_current.pot_positions[3]);
-
+    display.setCursor(0, 6);
+    snprintf(buf, sizeof(buf), "%04u %04u %04u %04u",
+                            ui_data_current.pot_positions[0],
+                            ui_data_current.pot_positions[1],
+                            ui_data_current.pot_positions[2],
+                            ui_data_current.pot_positions[3]);
+    display.printf("%s\n", buf);
     for (int i = 0, j = 0; i < 4; i++){
         if (ui_data_current.pot_states[i] & (1 << 0)) buf[j++] = '1';
         else buf[j++] = '0';
@@ -660,6 +673,12 @@ void Ui::RunUITests(){
     // f_btns and accelerometer
     display.printf("%s %+04d %+04d %+04d\n", buf, ui_data_current.accelerometer[0]>>8, ui_data_current.accelerometer[1]>>8, ui_data_current.accelerometer[2]>>8);
 
+    // set ableton link bpm to 120
+    if (ui_data_current.f_btns_long_press & (1 << 0)){
+        spi_api.SetAbletonLinkTempo(120.f);
+    }
+
+
     // print mcl buttons
     for (int i = 0; i < 12; i++){
         if (ui_data_current.mcl_btns & (1 << i)){
@@ -682,6 +701,14 @@ void Ui::RunUITests(){
         display.printf("FPS %dHz NO SD\n", 1000 / delta);
     }
 
+    link_session_data_t link_data;
+    midi.GetLinkData(link_data);
+    if (link_data.linkActive){
+        display.printf("Ableton %d peers, %3.2fbpm\nphase %1.2f, beat %.1f\n", link_data.numPeers, link_data.tempo, link_data.phase, link_data.beat);
+    }else{
+        display.printf("Ableton Link not active!\n");
+    }
+
     // in level bar
     uint16_t cy = display.getCursorY();
     display.fillRect(0, cy, r >> 1, 4, SSD1309_WHITE);
@@ -689,15 +716,31 @@ void Ui::RunUITests(){
     if (b) display.fillCircle(128 - 4, 3, 2, SSD1309_WHITE);
     else display.drawCircle(128 - 4, 3, 2, SSD1309_WHITE);
 
-    // bpm indicator approx.
-    if (bpm % 20 == 0){
-        tickLED = (tickLED + 1) % 16; // cycle through the LEDs
+    // bpm indicator
+    if (link_data.linkActive){
+        static bool link_tick {false};
+        auto sub_phase {phased_subcounter(link_data.phase, link_data.quantum)};
+        if (sub_phase > 0.1f){
+            link_tick = false;
+        }
+        if (sub_phase <= 0.1f && !link_tick){
+            tickLED = (tickLED + 1) % 16; // cycle through the LEDs
+            link_tick = true;
+        }
+        if (link_data.phase <= 0.1f){
+            strip.setPixelColor(rgb_led_fbtn_map[1], strip.Color(255, 255, 255));
+        }
+        strip.setPixelColor(rgb_led_btn_map[tickLED], strip.Color(255, 0, 0)); // blink the current tick LED
+    }else{
+        if (bpm % 20 == 0){
+            tickLED = (tickLED + 1) % 16; // cycle through the LEDs
+        }
+        if (bpm % 80 == 60){
+            strip.setPixelColor(rgb_led_fbtn_map[1], strip.Color(255, 255, 255));
+        }
+        strip.setPixelColor(rgb_led_btn_map[tickLED], strip.Color(255, 0, 0)); // blink the current tick LED
+        bpm++;
     }
-    if (bpm % 80 == 60){
-        strip.setPixelColor(rgb_led_fbtn_map[1], strip.Color(255, 255, 255));
-    }
-    strip.setPixelColor(rgb_led_btn_map[tickLED], strip.Color(255, 0, 0)); // blink the current tick LED
-    bpm++;
 
     display.display();
     strip.show();
