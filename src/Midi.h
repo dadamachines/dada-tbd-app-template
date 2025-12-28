@@ -10,6 +10,7 @@
 struct link_session_data_t{
     // --- Link Active ---
     bool linkActive;
+    bool isPlaying;
     uint32_t numPeers;
 
     // --- Tempo / structure ---

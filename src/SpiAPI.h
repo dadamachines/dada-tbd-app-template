@@ -34,6 +34,7 @@ typedef enum{
     SetActiveSampleRomBank = 0x18, // sets active sample rom bank, args [bank index (uint8_t)]
     GetFirmwareInfo = 0x19, // returns json {"HWV": hardware version, "FWV": firmware version, "OTA": active ota partition}
     SetAbletonLinkTempo = 0x20, // sets Ableton Link tempo, args [tempo (float bpm)]
+    SetAbletonLinkStartStop = 0x21, // sets Ableton Link start/stop, args [isPlaying (uint8_t, 0 = stop, 1 = start)]
 } RequestType_t;
 
 class SpiAPI{
@@ -73,4 +74,5 @@ public:
     bool SetActiveSampleRomBank(const uint8_t bankIndex);
     bool GetFirmwareInfo(std::string& response);
     bool SetAbletonLinkTempo(const float tempo);
+    bool SetAbletonLinkStartStop(const bool isPlaying);
 };

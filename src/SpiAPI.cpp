@@ -346,3 +346,11 @@ bool SpiAPI::SetAbletonLinkTempo(const float tempo){
     cmd_api_spi.WaitUntilP4IsReady();
     return true;
 }
+
+bool SpiAPI::SetAbletonLinkStartStop(const bool isPlaying){
+    *request_type = RequestType_t::SetAbletonLinkStartStop; // request type
+    *uint8_param_0 = isPlaying ? 1 : 0;
+    send();
+    cmd_api_spi.WaitUntilP4IsReady();
+    return true;
+}

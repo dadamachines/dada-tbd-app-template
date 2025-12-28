@@ -673,12 +673,6 @@ void Ui::RunUITests(){
     // f_btns and accelerometer
     display.printf("%s %+04d %+04d %+04d\n", buf, ui_data_current.accelerometer[0]>>8, ui_data_current.accelerometer[1]>>8, ui_data_current.accelerometer[2]>>8);
 
-    // set ableton link bpm to 120
-    if (ui_data_current.f_btns_long_press & (1 << 0)){
-        spi_api.SetAbletonLinkTempo(120.f);
-    }
-
-
     // print mcl buttons
     for (int i = 0; i < 12; i++){
         if (ui_data_current.mcl_btns & (1 << i)){
@@ -704,7 +698,24 @@ void Ui::RunUITests(){
     link_session_data_t link_data;
     midi.GetLinkData(link_data);
     if (link_data.linkActive){
-        display.printf("Ableton %d peers, %3.2fbpm\nphase %1.2f, beat %.1f\n", link_data.numPeers, link_data.tempo, link_data.phase, link_data.beat);
+        display.printf("Ableton %d peers, %3.2fbpm, %s\nphase %1.2f, beat %.1f\n", link_data.numPeers, link_data.tempo, link_data.isPlaying ? "play": "stop", link_data.phase, link_data.beat);
+        // start ableton link on left display btn
+        if (ui_data_current.f_btns & (1 << 0)){
+            spi_api.SetAbletonLinkStartStop(true);
+        }
+        // stop ableton link on right display btn
+        if (ui_data_current.f_btns & (1 << 1)){
+            spi_api.SetAbletonLinkStartStop(false);
+        }
+        // set ableton link bpm with left pot
+        if (ui_data_current.pot_states[0] & (1 << 0))
+            spi_api.SetAbletonLinkTempo(link_data.tempo + 0.1f);
+        if (ui_data_current.pot_states[0] & (1 << 1))
+            spi_api.SetAbletonLinkTempo(link_data.tempo - 0.1f);
+        // reset tempo to 120 bpm on long press of left pot
+        if (ui_data_current.f_btns_long_press & (1 << 2)){
+            spi_api.SetAbletonLinkTempo(120.f);
+        }
     }else{
         display.printf("Ableton Link not active!\n");
     }
