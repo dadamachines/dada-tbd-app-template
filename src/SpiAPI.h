@@ -35,6 +35,7 @@ typedef enum{
     GetFirmwareInfo = 0x19, // returns json {"HWV": hardware version, "FWV": firmware version, "OTA": active ota partition}
     SetAbletonLinkTempo = 0x20, // sets Ableton Link tempo, args [tempo (float bpm)]
     SetAbletonLinkStartStop = 0x21, // sets Ableton Link start/stop, args [isPlaying (uint8_t, 0 = stop, 1 = start)]
+    RebootToOTAX = 0x22, // reboots the device to OTAX, args [X (uint8_t)]
 } RequestType_t;
 
 class SpiAPI{
@@ -69,6 +70,7 @@ public:
     bool GetIOCapabilities(std::string& response);
     bool Reboot();
     bool RebootIntoOTA1();
+    bool RebootIntoOTAX(const uint8_t slot);
     bool GetSampleRomDescriptor(std::string& response);
     bool SetActiveWaveTableBank(const uint8_t bankIndex);
     bool SetActiveSampleRomBank(const uint8_t bankIndex);

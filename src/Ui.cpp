@@ -500,7 +500,7 @@ void Ui::BootIntoOTA1(){
     display.setCursor(0, 0);
     display.printf("P4 sd-card mode, wait\n");
     display.display();
-    spi_api.RebootIntoOTA1();
+    spi_api.RebootIntoOTAX(1);
     delay(2000);
     std::string res;
     spi_api.GetFirmwareInfo(res);

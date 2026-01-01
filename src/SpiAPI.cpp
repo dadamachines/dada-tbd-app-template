@@ -306,6 +306,14 @@ bool SpiAPI::RebootIntoOTA1(){
     return true;
 }
 
+bool SpiAPI::RebootIntoOTAX(const uint8_t slot){
+    *request_type = RequestType_t::RebootToOTAX;
+    *uint8_param_0 = slot;
+    send();
+    delay(1000);
+    return true;
+}
+
 bool SpiAPI::GetSampleRomDescriptor(std::string& response){
     // send GetSampleRomDescriptor request
     response.clear();
