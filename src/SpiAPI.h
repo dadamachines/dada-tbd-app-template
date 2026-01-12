@@ -36,6 +36,7 @@ typedef enum{
     SetAbletonLinkTempo = 0x20, // sets Ableton Link tempo, args [tempo (float bpm)]
     SetAbletonLinkStartStop = 0x21, // sets Ableton Link start/stop, args [isPlaying (uint8_t, 0 = stop, 1 = start)]
     RebootToOTAX = 0x22, // reboots the device to OTAX, args [X (uint8_t)]
+    SendFile = 0x23, // sends a file to the device, args [filepath (cstring), filedata (byte array)]
 } RequestType_t;
 
 class SpiAPI{
@@ -77,4 +78,5 @@ public:
     bool GetFirmwareInfo(std::string& response);
     bool SetAbletonLinkTempo(const float tempo);
     bool SetAbletonLinkStartStop(const bool isPlaying);
+    bool SendFile(const std::string& localFilePath, const std::string& remoteFilePath);
 };

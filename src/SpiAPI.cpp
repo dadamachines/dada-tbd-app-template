@@ -1,6 +1,9 @@
 #include "SpiAPI.h"
 #include <cstring>
 #include <Arduino.h>
+#include <SD.h>
+
+//extern SerialPIO transmitter;
 
 static uint8_t out_buf[2048], in_buf[2048];
 // params
@@ -360,5 +363,217 @@ bool SpiAPI::SetAbletonLinkStartStop(const bool isPlaying){
     *uint8_param_0 = isPlaying ? 1 : 0;
     send();
     cmd_api_spi.WaitUntilP4IsReady();
+    return true;
+}
+
+// CRC32 calculation matching ESP32's esp_rom_crc32_le
+static uint32_t crc32_le(uint32_t crc, const uint8_t *buf, uint32_t len) {
+    static const uint32_t crc_table[16] = {
+        0x00000000, 0x1db71064, 0x3b6e20c8, 0x26d930ac,
+        0x76dc4190, 0x6b6b51f4, 0x4db26158, 0x5005713c,
+        0xedb88320, 0xf00f9344, 0xd6d6a3e8, 0xcb61b38c,
+        0x9b64c2b0, 0x86d3d2d4, 0xa00ae278, 0xbdbdf21c
+    };
+
+    crc = ~crc;
+    for (uint32_t i = 0; i < len; i++) {
+        crc ^= buf[i];
+        crc = (crc >> 4) ^ crc_table[crc & 0x0f];
+        crc = (crc >> 4) ^ crc_table[crc & 0x0f];
+    }
+    return ~crc;
+}
+
+bool SpiAPI::SendFile(const std::string& localFilePath, const std::string& remoteFilePath){
+    Serial.println("\n[DEBUG] SendFile: Starting file transfer");
+    Serial.print("[DEBUG] Local file: ");
+    Serial.println(localFilePath.c_str());
+    Serial.print("[DEBUG] Remote file: ");
+    Serial.println(remoteFilePath.c_str());
+
+    // Open local file from SD card
+    File file = SD.open(localFilePath.c_str(), FILE_READ);
+    if (!file){
+        //transmitter.println("[ERROR] Failed to open local file!");
+        return false; // File not found
+    }
+
+    uint32_t fileSize = file.size();
+    //transmitter.print("[DEBUG] File size: ");
+    //transmitter.print(fileSize);
+    //transmitter.println(" bytes");
+
+    // Step 1: Notify slave of incoming file transfer
+    // one init package looks as follows:
+    // 0xCA, 0xFE: Watermark Byte 0, 1
+    // request type: Byte 2
+    // file length (uint32_t): Byte 3-6
+    // total number of chunks (uint32_t): Byte 7-10
+    // file name (cstring): Byte 11-n
+    // n is 2048 - 11 = 2037 bytes max for file name
+
+    //transmitter.println("[DEBUG] Step 1: Sending init frame to slave...");
+    *request_type = RequestType_t::SendFile;
+    uint32_t* file_length = (uint32_t*) &out_buf[3];
+    *file_length = file.size();
+    uint32_t* total_chunks = (uint32_t*) &out_buf[7];
+    *total_chunks = file.size() / (2048 - 15); // 15 bytes for header in data packets
+    if (file.size() % (2048 - 15)) (*total_chunks)++;
+    // Save total_chunks to local variable before buffer gets reused
+    const uint32_t totalChunks = *total_chunks;
+    char* file_name = (char*)&out_buf[11];
+    strcpy(file_name, remoteFilePath.c_str());
+    send();
+
+    // Get slave acknowledgment, just repeat send
+    //transmitter.println("[DEBUG] Checking slave ACK...");
+    *request_type = RequestType_t::SendFile;
+    send();
+
+    //transmitter.println("[DEBUG] Checking slave ACK...");
+    uint8_t * const request_type_ack = &in_buf[2]; // request type
+    if (*request_type_ack != RequestType_t::SendFile){
+        //transmitter.print("[ERROR] Slave ACK wrong type: ");
+        //transmitter.println(*request_type_ack);
+        file.close();
+        return false; // Slave did not acknowledge SendFile request
+    }
+    uint32_t file_size_ack = *(uint32_t*)&in_buf[3];
+    //transmitter.print("[DEBUG] Slave ACK file size: ");
+    //transmitter.println(file_size_ack);
+    if (file_size_ack != fileSize){
+        //transmitter.println("[ERROR] Slave ACK file size mismatch!");
+        file.close();
+        return false; // Slave did not acknowledge correct file size
+    }
+    //transmitter.println("[DEBUG] Step 1 complete - slave acknowledged");
+
+    // Step 2: Send file data in chunks
+    // one sender data package looks as follows:
+    // 0xCA, 0xFE: Watermark Byte 0, 1
+    // request type: Byte 2
+    // chunk number (uint32_t): Byte 3-6
+    // chunk data size (uint32_t): Byte 7-10
+    // chunk data crc32le (uint32_t): Byte 11-14
+    // chunk data: Byte 15-n
+    // n is 2048 - 15 = 2033 bytes max for chunk data
+    // slave responds in subsequent frame with following acknowledgement
+    // 0xCA, 0xFE: Watermark Byte 0, 1
+    // request type: Byte 2
+    // chunk number (uint32_t): Byte 3-6
+    // chunk status (uint8_t): Byte 7 (0 = OK, 1 = CRC error, 2 = other error)
+    // on error the sender must restart sending from previous chunk
+    // this should only occur on CRC errors, other errors are fatal
+    // the slave response is delayed by one transmission
+    // except for the first chunk, where general errors are reported immediately
+    // retrying should occur only on CRC errors maximum 3 times per chunk
+    // we are master
+
+    //transmitter.println("[DEBUG] Step 2: Sending file data...");
+    uint32_t* chunk_number_field_sender = (uint32_t*)&out_buf[3];
+    uint32_t* chunk_size_field_sender = (uint32_t*)&out_buf[7];
+    uint32_t* chunk_crc32_field_sender = (uint32_t*)&out_buf[11];
+    uint8_t* chunk_data_field_sender = &out_buf[15];
+    uint32_t chunkNumber = 0;
+    const uint16_t* watermark_field_receiver = (uint16_t*)&in_buf[0];
+    const uint8_t* request_type_field_receiver = &in_buf[2];
+    const uint32_t* chunk_number_field_receiver = (uint32_t*)&in_buf[3];
+    const uint8_t* chunk_status_field_receiver = &in_buf[7];
+
+    while (file.available() && chunkNumber < totalChunks){
+        // Read chunk data from file
+        size_t bytesRead = file.read(chunk_data_field_sender, 2048 - 15);
+        // Prepare data packet
+        *request_type = RequestType_t::SendFile;
+        *chunk_number_field_sender = chunkNumber;
+        *chunk_size_field_sender = bytesRead;
+        *chunk_crc32_field_sender = crc32_le(0, chunk_data_field_sender, bytesRead);
+        // Transmit data packet
+        send();
+        // first chunk can already have an error from slave e.g. if file exists but is corrupted
+        // so we need to check for that right away
+        if (chunkNumber == 0){
+            //transmitter.println("[DEBUG] Checking slave ACK for first chunk...");
+            if (*watermark_field_receiver != 0xFECA){
+                //transmitter.println("[ERROR] Slave ACK wrong watermark at first chunk");
+                file.close();
+                return false; // Slave did not acknowledge SendFile request
+            }
+            if (*request_type_field_receiver != RequestType_t::SendFile){
+                //transmitter.println("[ERROR] Slave ACK wrong type at first chunk");
+                file.close();
+                return false; // Slave did not acknowledge SendFile request
+            }
+            uint32_t ackChunkNumber = *chunk_number_field_receiver;
+            if (ackChunkNumber != 0){
+                //transmitter.println("[ERROR] Slave ACK chunk number mismatch at first chunk");
+                file.close();
+                return false; // Slave did not acknowledge correct chunk number
+            }
+            uint8_t chunkStatus = *chunk_status_field_receiver;
+            if (chunkStatus != 0){
+                //transmitter.println("[ERROR] Slave reported fatal error at first chunk");
+                file.close();
+                return false; // Fatal error reported by slave
+            }
+        }
+        // check slave acknowledgment from previous chunk (if not first chunk)
+        if (chunkNumber > 0){
+            if (*watermark_field_receiver != 0xFECA){
+                //transmitter.print("[ERROR] Slave ACK wrong watermark at chunk ");
+                //transmitter.println(chunkNumber - 1);
+                file.close();
+                return false; // Slave did not acknowledge SendFile request
+            }
+            if (*request_type_field_receiver != RequestType_t::SendFile){
+                //transmitter.print("[ERROR] Slave ACK wrong type at chunk ");
+                //transmitter.println(chunkNumber - 1);
+                file.close();
+                return false; // Slave did not acknowledge SendFile request
+            }
+            uint32_t ackChunkNumber = *chunk_number_field_receiver;
+            if (ackChunkNumber != chunkNumber - 1){
+                //transmitter.print("[ERROR] Slave ACK chunk number mismatch at chunk ");
+                //transmitter.println(chunkNumber - 1);
+                file.close();
+                return false; // Slave did not acknowledge correct chunk number
+            }
+            uint8_t chunkStatus = *chunk_status_field_receiver;
+            if (chunkStatus == 1){
+                //transmitter.print("[WARNING] Slave reported CRC error at chunk ");
+                //transmitter.println(chunkNumber - 1);
+                // retry sending previous chunk
+                file.seek((chunkNumber - 1) * (2048 - 15)); // seek back to previous chunk
+                chunkNumber--; // Decrement to stay on the same chunk number
+                continue;
+            } else if (chunkStatus == 2){
+                //transmitter.print("[ERROR] Slave reported fatal error at chunk ");
+                //transmitter.println(chunkNumber - 1);
+                file.close();
+                return false; // Fatal error reported by slave
+            }
+        }
+        chunkNumber++;
+        if (chunkNumber % 10 == 0){
+            //transmitter.print("[DEBUG] Sent chunk ");;
+            //transmitter.print(chunkNumber);
+            //transmitter.print(" / ");
+            //transmitter.println(totalChunks);
+        }
+    }
+
+    // Check final chunk acknowledgment
+    send();
+    if (*watermark_field_receiver != 0xFECA ||
+        *request_type_field_receiver != RequestType_t::SendFile ||
+        *chunk_number_field_receiver != chunkNumber - 1 ||
+        *chunk_status_field_receiver != 0) {
+        //transmitter.println("[ERROR] Final chunk not acknowledged properly");
+        file.close();
+        return false;
+    }
+
+    file.close();
+    //transmitter.println("[SUCCESS] File transfer complete!");
     return true;
 }
