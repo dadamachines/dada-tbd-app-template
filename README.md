@@ -169,4 +169,8 @@ The TBD-16 adaptation is led by [dadamachines](https://dadamachines.com).
 
 ## License
 
-See the individual source files for license terms. Core platform libraries originate from [ctag-fh-kiel](https://github.com/ctag-fh-kiel).
+This repository is licensed under the [GNU Lesser General Public License (LGPL 3.0)](https://www.gnu.org/licenses/lgpl-3.0.txt).
+
+**Your app code is yours** — the LGPL applies only to the template libraries (SpiAPI, Midi, Ui, etc.). The code you write that links against them can be any license you choose, including proprietary. If you modify the template libraries themselves and distribute the result, share those modifications under LGPL 3.0.
+
+See [LICENSE](LICENSE) for full details including trademark and commercial use terms.
