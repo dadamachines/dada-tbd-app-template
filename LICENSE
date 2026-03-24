@@ -75,3 +75,23 @@ If you modify the template libraries and distribute them, those
 modifications must be released under LGPL 3.0. If you would like to keep
 your modifications proprietary, dadamachines can provide a commercial
 license. Contact us: https://dadamachines.com/contact/
+
+
+HARDWARE DESIGNS
+----------------
+The dadamachines TBD-16 (desktop instrument) and TBD-Core (core DSP board
+for custom products) are commercial products. Their hardware designs are
+proprietary and not released under an open-source license.
+
+An open-hardware core design based on the same ESP32-P4 + RP2350 platform
+is planned for future publication in KiCad as an open-source reference,
+to foster education, prototyping, and instrument design.
+
+
+DISCLAIMER
+----------
+TBD is provided "as is" without any express or implied warranties.
+
+License and copyright details for specific submodules or third-party
+libraries are included in their respective folders / files if different
+from this license.
