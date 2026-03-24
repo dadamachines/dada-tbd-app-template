@@ -4,6 +4,46 @@ The official starting point for building RP2350 apps for the [dadamachines TBD-1
 
 This template provides the core libraries and project structure for creating custom instruments, effects, sequencers, and utilities that run on the TBD-16's RP2350 co-processor — communicating with the ESP32-P4 DSP engine over SPI.
 
+## Branches
+
+This repo contains several branches, each with a different firmware variant:
+
+### `main` — App Template (Arduino)
+
+The default branch. A full Arduino-framework template for building custom TBD-16 apps with OLED UI, MIDI, NeoPixels, and the SPI command API to the ESP32-P4 DSP engine. See the rest of this README for details.
+
+### `feature/tusb-msc-flash` — USB Mass Storage (Flash)
+
+Flash-targeted USB Mass Storage firmware with OLED status display. Exposes the TBD-16's SD card as a USB drive for file management.
+
+- **Framework:** Arduino (earlephilhower core) + Adafruit TinyUSB + SdFat
+- **Binary type:** Standard flash (UF2 addresses `0x10000000`+)
+- **OLED:** PIO SPI via DaDa_OLED / Adafruit GFX — shows mount/ready/eject status
+- **Flash via:** Picoboot WebUSB (App Manager) or drag-and-drop in BOOTSEL mode
+- **Build:** `pio run -e pi2350`
+- **CDN:** Published as `tusb-msc-pico` (flash target)
+
+### `feature/tusb-msc-oled` — USB Mass Storage (RAM / SD Bootloader)
+
+RAM-targeted USB Mass Storage firmware with OLED status display. Same functionality as `feature/tusb-msc-flash` but designed to be loaded by the SD card bootloader at runtime.
+
+- **Framework:** Pico SDK (raw C) + TinyUSB + no-OS-FatFS (SDIO PIO)
+- **Binary type:** `no_flash` (UF2 addresses `0x20000000`+, requires `-DPICO_NO_FLASH=1`)
+- **OLED:** Hardware SPI1 via lcdspi library — shows mount/ready/eject status
+- **Flash via:** Copy `tusb_msc.uf2` to SD card `tbd-apps/` folder (multi-app bootloader)
+- **Build:** `pio run -e pi2350`
+- **CDN:** Published as `tusb-msc-pico` (RAM target)
+
+### `feature/flash-nuke` — Flash Nuke
+
+Erases the entire RP2350 flash chip. Compatible with Picoboot WebUSB flashing.
+
+- **Framework:** Pico SDK (raw C)
+- **Binary type:** `copy_to_ram` (UF2 addresses `0x10000000`+, CRT0 copies to RAM before executing)
+- **Flash via:** Picoboot WebUSB (App Manager) or drag-and-drop in BOOTSEL mode
+- **Build:** `pio run -e pi2350`
+- **CDN:** Published as `flash-nuke`
+
 ## What You Can Build
 
 The RP2350 controls the TBD-16's user interface and MIDI I/O. Your app has full access to:
