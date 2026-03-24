@@ -19,6 +19,33 @@
 #include "SdFat.h"
 #include "Adafruit_TinyUSB.h"
 
+/* ── OLED display (SSD1309 via PIO SPI) ── */
+#include <SoftwareSPI.h>
+#include <Adafruit_GFX.h>
+#include "DaDa_SSD1309.h"
+
+#define OLED_MOSI 15
+#define OLED_SCLK 14
+#define OLED_DC   12
+#define OLED_CS   13
+#define OLED_RST  16
+
+static SoftwareSPI softSPI(OLED_SCLK, OLED_DC, OLED_MOSI);
+static DaDa_SSD1309 display(128, 64, &softSPI, OLED_DC, OLED_RST, OLED_CS);
+
+static void oled_show(const char *line1, const char *line2 = nullptr) {
+    display.clearDisplay();
+    display.setTextSize(1);
+    display.setTextColor(SSD1309_WHITE);
+    display.setCursor(0, 8);
+    display.print(line1);
+    if (line2) {
+        display.setCursor(0, 24);
+        display.print(line2);
+    }
+    display.display();
+}
+
 /* ── SDIO pin definitions (TBD-16 hardware) ── */
 #define SDIO_CLK_GPIO  2
 #define SDIO_CMD_GPIO  3
@@ -31,6 +58,7 @@ SdFat sd;
 Adafruit_USBD_MSC usb_msc;
 
 static bool sd_ready = false;
+static bool first_read = true;
 
 /* Forward declarations for MSC callbacks */
 int32_t msc_read_cb(uint32_t lba, void *buffer, uint32_t bufsize);
@@ -38,6 +66,11 @@ int32_t msc_write_cb(uint32_t lba, uint8_t *buffer, uint32_t bufsize);
 void msc_flush_cb(void);
 
 void setup() {
+    /* Initialize OLED display */
+    display.begin(0, true);
+    display.setRotation(0);
+    oled_show("DADA TBD-16", "USB Mass Storage");
+
     /* USB MSC descriptor */
     usb_msc.setID("dadamachines", "TBD-16 SD Card", "2.0");
     usb_msc.setReadWriteCallback(msc_read_cb, msc_write_cb, msc_flush_cb);
@@ -58,6 +91,9 @@ void setup() {
         uint32_t block_count = sd.card()->sectorCount();
         usb_msc.setCapacity(block_count, 512);
         usb_msc.setUnitReady(true);
+        oled_show("Mounting SD Card...", "Please wait");
+    } else {
+        oled_show("SD Card Error!", "Check card & reboot");
     }
 }
 
@@ -70,6 +106,10 @@ void loop() {
 
 int32_t msc_read_cb(uint32_t lba, void *buffer, uint32_t bufsize) {
     if (!sd_ready) return -1;
+    if (first_read) {
+        first_read = false;
+        oled_show("SD Card Ready", "Eject before removing");
+    }
     uint32_t sectors = bufsize / 512;
     return sd.card()->readSectors(lba, (uint8_t *)buffer, sectors) ? (int32_t)bufsize : -1;
 }
